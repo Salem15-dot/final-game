@@ -328,11 +328,7 @@ public class GameController {
             }
 
             restartCooldownRemainingMs = RESTART_COOLDOWN_MS;
-            if (model.getGameState() == GameModel.GameState.GAME_OVER || model.getGameState() == GameModel.GameState.VICTORY) {
-                startNewGame();
-            } else {
-                model.startLevel(model.getCurrentLevel());
-            }
+            startNewGame();
             return true;
         }
         

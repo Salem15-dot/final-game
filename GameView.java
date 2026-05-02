@@ -157,8 +157,8 @@ public class GameView {
 
                 int drawY = (int) enemy.getY() + getEnemyDrawYOffset(enemyType);
 
-                // Wolf is left-facing only; flip if enemy is left of player
-                boolean shouldFlip = !facingLeft && enemyType.equals("Wolf");
+                // Wolf sprite faces right by default; flip only when it needs to face left.
+                boolean shouldFlip = facingLeft && enemyType.equals("Wolf");
 
                 drawSprite(g2d, sprite, (int) enemy.getX(), drawY, scale, shouldFlip);
             }
@@ -234,20 +234,20 @@ public class GameView {
             int gw = 64, gh = 64;
             goblinWalkL = new AnimClip(goblinSheet, 1, 0, 1, gw, gh);
             goblinWalkR = new AnimClip(goblinSheet, 3, 0, 1, gw, gh);
-            goblinAttackL = new AnimClip(goblinSheet, 1, 0, 1, gw, gh);
-            goblinAttackR = new AnimClip(goblinSheet, 3, 0, 1, gw, gh);
+            goblinAttackL = new AnimClip(goblinSheet, 1, 8, 1, gw, gh);
+            goblinAttackR = new AnimClip(goblinSheet, 3, 8, 1, gw, gh);
 
             // ROGUE: 32 x 32, use one clean side-facing frame.
             int rw = 32, rh = 32;
             rogueWalkL = new AnimClip(rogueSheet, 1, 0, 1, rw, rh);
             rogueWalkR = new AnimClip(rogueSheet, 1, 0, 1, rw, rh);
-            rogueAttackL = new AnimClip(rogueSheet, 1, 0, 1, rw, rh);
-            rogueAttackR = new AnimClip(rogueSheet, 1, 0, 1, rw, rh);
+            rogueAttackL = new AnimClip(rogueSheet, 3, 5, 1, rw, rh);
+            rogueAttackR = new AnimClip(rogueSheet, 3, 5, 1, rw, rh);
 
             // WOLF: quadruped section starts at col 5.
             int ww = 64, wh = 64;
-            wolfWalkL = new AnimClip(wolfSheet, 0, 5, 1, ww, wh);
-            wolfAttackL = new AnimClip(wolfSheet, 0, 5, 1, ww, wh);
+            wolfWalkL = new AnimClip(wolfSheet, 1, 5, 1, ww, wh);
+            wolfAttackL = new AnimClip(wolfSheet, 3, 7, 1, ww, wh);
         }
 
         /**
@@ -302,7 +302,7 @@ public class GameView {
 
         private int getEnemyDrawYOffset(String enemyType) {
             if (enemyType.equals("Wolf")) {
-                return 18;
+                return 28;
             }
             if (enemyType.equals("Rogue")) {
                 return 10;

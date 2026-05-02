@@ -418,7 +418,21 @@ here are my codes :
 
 Results : Animation is better, but seems like you having issue with directions of left and right. Goblin and other enemies now are walking roward me backward, so they use the frame that is looking right while am at their left, and left while am at their right, untill they reach me they stuck at one animation which is the first one (from my user view is goblin looking left) wherever i am. Just flib it , use the one that is looking in the oppoiste direction instead. Alsi the wolf for some reasone is higher than the ground, that could be becouse of his own picsles thing, make him in same Y level like others and make sure the rogue is also not facing same issue. When losing, the screen shows the game over press R to restart but pressing R doesn't really do anything and it lagged like this forever. Also the kicking is there but have no animation, also while responing if you press R  it works but the responing screen still.  
 
-Results 2 : 
+Results 2 : works, but when ding, respone shows which is correct and good, but if you press R while it is there it stays there and deosn't leave which is wronge as everything should restart, the health also doesn't which it should do, the lives, and so on.  
+
+
+
+
+Prompt 11 : works, but when ding, respone shows which is correct and good, but if you press R while it is there it stays there and deosn't leave which is wronge as everything should restart, the health also doesn't which it should do, the lives, and so on.  
+
+
+results : restart works correctly
+
+
+
+Prompt 12 : The wolfs and rogue are still 10 y above the ground relative to others in the View when i run the game, they look like flying, keep the roguer flying maybe that will look cool, but the wolf make him normal. Also the wolf is still mirrored animation, like how the gobline was, he comes backward and so. Do same thing you did you goblin and make him correct animated. Also enemies has no animation in attacking now, we should add them correctly accordigly :" file of animations details " 
+
+Results : 
 
 I am partway through building [game] in Java with Swing using MVC.
 
