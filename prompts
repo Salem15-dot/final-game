@@ -432,7 +432,14 @@ results : restart works correctly
 
 Prompt 12 : The wolfs and rogue are still 10 y above the ground relative to others in the View when i run the game, they look like flying, keep the roguer flying maybe that will look cool, but the wolf make him normal. Also the wolf is still mirrored animation, like how the gobline was, he comes backward and so. Do same thing you did you goblin and make him correct animated. Also enemies has no animation in attacking now, we should add them correctly accordigly :" file of animations details " 
 
-Results : 
+Results : Very good, there is attacking animation, one enhancemnt is that it stays active as long as they are within the attacking range which is not supposed to be, it only gets active when they actually attack . Also the wolfs for some reasone are like this : 
+
+one flying and other under the ground a little, which maybe because of the overlaying , make them respone apart and also fine to have same x and all correctly same hight level (y) (the wolfs and so, rememebr don't break or change anything with the flying rogue and other rules only change the wolf here) . 
+
+
+
+
+Results 2 : 
 
 I am partway through building [game] in Java with Swing using MVC.
 

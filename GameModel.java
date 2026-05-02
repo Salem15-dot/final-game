@@ -480,19 +480,25 @@ public class GameModel {
 
             double distanceX = player.getX() - x;
             facing = distanceX >= 0 ? 1 : -1;
+            boolean attackTriggered = false;
 
             if (Math.abs(distanceX) <= attackRange) {
-                state = EnemyState.ATTACK;
                 velocityX = 0;
                 if (attackCooldownRemaining == 0) {
                     // begin an attack window during which collision controller can apply damage exactly once
                     attackActiveWindow = this.attackActiveWindowDefault > 0 ? this.attackActiveWindowDefault : 220;
                     attackCooldownRemaining = attackCooldown;
                     attackDelivered = false;
+                    attackTriggered = true;
                 }
             } else {
-                state = EnemyState.WALK;
                 walkToward(player.getX(), deltaTime);
+            }
+
+            if (attackActiveWindow > 0 || attackTriggered) {
+                state = EnemyState.ATTACK;
+            } else {
+                state = EnemyState.WALK;
             }
 
             y = CHARACTER_GROUND_Y - height;
@@ -617,12 +623,14 @@ public class GameModel {
         private long spawnInterval; // milliseconds
         private long spawnTimer;
         private int maxEnemiesOnScreen;
+        private int wolfSpawnIndex;
         
         public Spawner(int level) {
             this.level = level;
             this.spawnInterval = 3000; // 3 seconds, tunable per level
             this.spawnTimer = 0;
             this.maxEnemiesOnScreen = 4;
+            this.wolfSpawnIndex = 0;
             configureLevelSpawning();
         }
         
@@ -675,7 +683,7 @@ public class GameModel {
 
             if (level == 2) {
                 roll = random.nextInt(2);
-                return (roll == 0) ? new Goblin(spawnX, GROUND_Y - 72) : new Wolf(spawnX, GROUND_Y - 80);
+                return (roll == 0) ? new Goblin(spawnX, GROUND_Y - 72) : new Wolf(nextWolfSpawnX(spawnX), GROUND_Y - 80);
             }
 
             if (level == 3) {
@@ -684,7 +692,7 @@ public class GameModel {
                     return new Goblin(spawnX, GROUND_Y - 72);
                 }
                 if (roll == 1) {
-                    return new Wolf(spawnX, GROUND_Y - 80);
+                    return new Wolf(nextWolfSpawnX(spawnX), GROUND_Y - 80);
                 }
                 return new Rogue(spawnX, GROUND_Y - 96);
             }
@@ -695,9 +703,15 @@ public class GameModel {
                 return new Goblin(spawnX, GROUND_Y - 72);
             }
             if (roll == 1) {
-                return new Wolf(spawnX, GROUND_Y - 80);
+                return new Wolf(nextWolfSpawnX(spawnX), GROUND_Y - 80);
             }
             return new Rogue(spawnX, GROUND_Y - 96);
+        }
+
+        private int nextWolfSpawnX(int baseSpawnX) {
+            int spawnX = baseSpawnX + (wolfSpawnIndex % 3) * 120;
+            wolfSpawnIndex++;
+            return spawnX;
         }
     }
 }
