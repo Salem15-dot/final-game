@@ -28,9 +28,14 @@ public class GameController {
         
         // Setup input on game window
         view.getGameWindow().addKeyListener(keyboardController);
+        view.getGameWindow().getGamePanel().addKeyListener(keyboardController);
+        SwingUtilities.invokeLater(() -> view.getGameWindow().getGamePanel().requestFocusInWindow());
+
+        // Start directly in level 1 for iterative gameplay testing.
+        this.stateController.startNewGame();
         
         // Start game loop
-        this.gameLoop = new GameLoop(model, view, keyboardController, collisionController);
+        this.gameLoop = new GameLoop(model, view, keyboardController, collisionController, stateController);
         gameLoop.start();
     }
     
@@ -109,6 +114,7 @@ public class GameController {
         private GameView view;
         private KeyboardController keyboardController;
         private CollisionController collisionController;
+        private StateController stateController;
         private Timer timer;
         private long lastFrameTime;
         private static final int FPS = 60;
@@ -116,11 +122,13 @@ public class GameController {
         
         public GameLoop(GameModel model, GameView view,
                         KeyboardController keyboardController,
-                        CollisionController collisionController) {
+                        CollisionController collisionController,
+                        StateController stateController) {
             this.model = model;
             this.view = view;
             this.keyboardController = keyboardController;
             this.collisionController = collisionController;
+            this.stateController = stateController;
             this.lastFrameTime = System.currentTimeMillis();
         }
         
@@ -157,11 +165,15 @@ public class GameController {
             
             // 3. Check collisions and apply damage
             collisionController.checkCollisions(model);
+
+            // 4. Check state transitions
+            // Minimal routing now; expanded screen routing comes in later steps.
+            stateController.checkStateTransitions();
             
-            // 4. Render
+            // 5. Render
             view.render();
             
-            // 5. Clear edge-triggered inputs
+            // 6. Clear edge-triggered inputs
             keyboardController.clearPressedKeys();
         }
         
@@ -175,16 +187,13 @@ public class GameController {
             }
             
             // Movement
+            player.setRunHeld(keyboardController.isRunHeld());
             if (keyboardController.isLeftHeld()) {
                 player.moveLeft();
             }
             if (keyboardController.isRightHeld()) {
                 player.moveRight();
             }
-            
-            // Run modifier
-            boolean isRunning = keyboardController.isRunHeld();
-            // TODO: Apply run speed multiplier to player
             
             // Actions (edge-triggered)
             if (keyboardController.wasJumpPressed()) {
@@ -262,7 +271,9 @@ public class GameController {
          * Handle state transitions (win/lose/level-clear).
          */
         public void checkStateTransitions() {
-            // TODO: Implement transition logic
+            if (model.getGameState() == GameModel.GameState.LEVEL_CLEARED) {
+                model.advanceToNextLevel();
+            }
         }
         
         /**

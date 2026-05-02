@@ -5,8 +5,10 @@
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 
 public class GameModel {
+    private static final long LEVEL_DURATION_MS = 60000;
     
     // Game state enum
     public enum GameState {
@@ -34,6 +36,7 @@ public class GameModel {
     private Player player;
     private List<Enemy> enemies;
     private Spawner spawner;
+    private final Random random;
     
     /**
      * Initialize game model with defaults.
@@ -41,9 +44,10 @@ public class GameModel {
     public GameModel() {
         this.gameState = GameState.TITLE;
         this.currentLevel = 1;
-        this.levelTimeRemaining = 60000; // 60 seconds
+        this.levelTimeRemaining = LEVEL_DURATION_MS;
         this.player = new Player();
         this.enemies = new ArrayList<>();
+        this.random = new Random();
         this.spawner = new Spawner(currentLevel);
     }
     
@@ -62,7 +66,7 @@ public class GameModel {
         
         // Update enemies
         for (Enemy enemy : enemies) {
-            enemy.update(deltaTime);
+            enemy.update(deltaTime, player);
         }
         
         // Update spawner
@@ -70,6 +74,9 @@ public class GameModel {
         
         // Update level timer
         levelTimeRemaining -= (long)(deltaTime * 1000);
+        if (levelTimeRemaining < 0) {
+            levelTimeRemaining = 0;
+        }
         
         // Remove dead entities
         enemies.removeIf(e -> e.isDead());
@@ -82,14 +89,29 @@ public class GameModel {
      * Check win/lose/level-clear conditions.
      */
     private void checkLevelTransitions() {
-        // TODO: Implement transition logic
+        if (player.getLives() <= 0) {
+            gameState = GameState.GAME_OVER;
+            return;
+        }
+
+        if (levelTimeRemaining <= 0) {
+            if (currentLevel >= 4) {
+                gameState = GameState.VICTORY;
+            } else {
+                gameState = GameState.LEVEL_CLEARED;
+            }
+        }
     }
     
     /**
      * Apply damage from an attack to a target.
      */
     public void applyDamage(GameEntity target, int damage) {
-        // TODO: Implement collision-based damage
+        if (target instanceof Player) {
+            ((Player) target).takeDamage(damage);
+        } else if (target instanceof Enemy) {
+            ((Enemy) target).takeDamage(damage);
+        }
     }
     
     /**
@@ -97,10 +119,28 @@ public class GameModel {
      */
     public void startLevel(int levelNumber) {
         this.currentLevel = levelNumber;
-        this.levelTimeRemaining = 60000;
+        this.levelTimeRemaining = LEVEL_DURATION_MS;
         this.enemies.clear();
         this.spawner = new Spawner(levelNumber);
         this.gameState = GameState.PLAYING;
+
+        // Give each level an immediate visual enemy check-in.
+        int starterEnemies = Math.min(levelNumber, 3);
+        for (int i = 0; i < starterEnemies; i++) {
+            Enemy spawned = spawner.spawnRandomEnemy();
+            if (spawned != null) {
+                spawned.setX(WORLD_WIDTH - 120 - (i * 80));
+                enemies.add(spawned);
+            }
+        }
+    }
+
+    public void advanceToNextLevel() {
+        if (currentLevel >= 4) {
+            gameState = GameState.VICTORY;
+            return;
+        }
+        startLevel(currentLevel + 1);
     }
     
     /**
@@ -132,6 +172,11 @@ public class GameModel {
     
     // ========== PLAYER CLASS ==========
     public static class Player extends GameEntity {
+        private static final double WALK_SPEED = 260.0;
+        private static final double RUN_SPEED = 380.0;
+        private static final double GRAVITY = 1600.0;
+        private static final double JUMP_VELOCITY = -700.0;
+
         private PlayerState state;
         private int hp;
         private int maxHp = 100;
@@ -141,29 +186,176 @@ public class GameModel {
         private boolean onGround;
         private long attackFrameWindow; // Time active attack hitbox is active (ms)
         private long respawnTimer;
+        private boolean moveInputThisFrame;
+        private boolean runHeld;
+        private long actionStateTimer;
+        private int currentAttackDamage;
         
         public Player() {
-            super(100, GROUND_Y, 50, 50); // x, y, w, h (placeholder)
+            super(100, GROUND_Y - 100, 92, 100);
             this.state = PlayerState.IDLE;
             this.hp = maxHp;
             this.velocityY = 0;
             this.onGround = true;
             this.attackFrameWindow = 0;
             this.respawnTimer = 0;
+            this.moveInputThisFrame = false;
+            this.runHeld = false;
+            this.actionStateTimer = 0;
+            this.currentAttackDamage = 0;
         }
         
         @Override
         public void update(double deltaTime) {
-            // TODO: Update position, velocity, state, animation
+            long deltaMs = (long) (deltaTime * 1000);
+
+            if (state == PlayerState.DEAD && lives > 0) {
+                respawnTimer -= deltaMs;
+                if (respawnTimer <= 0) {
+                    respawn();
+                }
+                return;
+            }
+
+            if (attackFrameWindow > 0) {
+                attackFrameWindow -= deltaMs;
+                if (attackFrameWindow < 0) {
+                    attackFrameWindow = 0;
+                }
+            }
+
+            if (actionStateTimer > 0) {
+                actionStateTimer -= deltaMs;
+                if (actionStateTimer <= 0 && onGround && (state == PlayerState.PUNCH || state == PlayerState.KICK || state == PlayerState.HURT)) {
+                    state = PlayerState.IDLE;
+                }
+            }
+
+            if (!onGround) {
+                velocityY += GRAVITY * deltaTime;
+            }
+
+            x += velocityX * deltaTime;
+            y += velocityY * deltaTime;
+
+            if (x < 0) {
+                x = 0;
+            }
+            if (x + width > WORLD_WIDTH) {
+                x = WORLD_WIDTH - width;
+            }
+
+            if (y + height >= GROUND_Y) {
+                y = GROUND_Y - height;
+                velocityY = 0;
+                onGround = true;
+                if (state == PlayerState.JUMP) {
+                    state = PlayerState.IDLE;
+                }
+            } else {
+                onGround = false;
+            }
+
+            if (!moveInputThisFrame && onGround && state != PlayerState.PUNCH && state != PlayerState.KICK && state != PlayerState.HURT) {
+                velocityX = 0;
+                if (state != PlayerState.IDLE) {
+                    state = PlayerState.IDLE;
+                }
+            }
+
+            moveInputThisFrame = false;
+            runHeld = false;
         }
         
-        public void moveLeft() { /* TODO */ }
-        public void moveRight() { /* TODO */ }
-        public void jump() { /* TODO */ }
-        public void punch() { /* TODO */ }
-        public void kick() { /* TODO */ }
-        public void takeDamage(int damage) { /* TODO */ }
-        public void respawn() { /* TODO */ }
+        public void moveLeft() {
+            if (state == PlayerState.DEAD || state == PlayerState.RESPAWNING) {
+                return;
+            }
+            moveInputThisFrame = true;
+            facing = -1;
+            velocityX = runHeld ? -RUN_SPEED : -WALK_SPEED;
+            if (onGround && state != PlayerState.PUNCH && state != PlayerState.KICK && state != PlayerState.HURT) {
+                state = runHeld ? PlayerState.RUN : PlayerState.WALK;
+            }
+        }
+
+        public void moveRight() {
+            if (state == PlayerState.DEAD || state == PlayerState.RESPAWNING) {
+                return;
+            }
+            moveInputThisFrame = true;
+            facing = 1;
+            velocityX = runHeld ? RUN_SPEED : WALK_SPEED;
+            if (onGround && state != PlayerState.PUNCH && state != PlayerState.KICK && state != PlayerState.HURT) {
+                state = runHeld ? PlayerState.RUN : PlayerState.WALK;
+            }
+        }
+
+        public void setRunHeld(boolean runHeld) {
+            this.runHeld = runHeld;
+        }
+
+        public void jump() {
+            if (!onGround || state == PlayerState.DEAD || state == PlayerState.RESPAWNING) {
+                return;
+            }
+            velocityY = JUMP_VELOCITY;
+            onGround = false;
+            state = PlayerState.JUMP;
+        }
+
+        public void punch() {
+            if (state == PlayerState.DEAD || state == PlayerState.RESPAWNING) {
+                return;
+            }
+            state = PlayerState.PUNCH;
+            attackFrameWindow = 120;
+            actionStateTimer = 220;
+            currentAttackDamage = 10;
+            velocityX = 0;
+        }
+
+        public void kick() {
+            if (state == PlayerState.DEAD || state == PlayerState.RESPAWNING) {
+                return;
+            }
+            state = PlayerState.KICK;
+            attackFrameWindow = 140;
+            actionStateTimer = 260;
+            currentAttackDamage = 15;
+            velocityX = 0;
+        }
+
+        public void takeDamage(int damage) {
+            if (state == PlayerState.DEAD || state == PlayerState.RESPAWNING) {
+                return;
+            }
+            hp -= damage;
+            if (hp <= 0) {
+                hp = 0;
+                lives--;
+                state = PlayerState.DEAD;
+                velocityX = 0;
+                attackFrameWindow = 0;
+                if (lives > 0) {
+                    respawnTimer = 3000;
+                }
+            } else {
+                state = PlayerState.HURT;
+                actionStateTimer = 180;
+            }
+        }
+
+        public void respawn() {
+            hp = maxHp;
+            x = 100;
+            y = GROUND_Y - height;
+            velocityX = 0;
+            velocityY = 0;
+            onGround = true;
+            state = PlayerState.IDLE;
+            respawnTimer = 0;
+        }
         
         public PlayerState getState() { return state; }
         public int getHp() { return hp; }
@@ -171,6 +363,7 @@ public class GameModel {
         public int getLives() { return lives; }
         public int getFacing() { return facing; }
         public boolean hasActiveAttack() { return attackFrameWindow > 0; }
+        public int getCurrentAttackDamage() { return currentAttackDamage; }
     }
     
     // ========== ENEMY BASE CLASS ==========
@@ -186,25 +379,85 @@ public class GameModel {
         protected int facing = 1; // 1 = right, -1 = left
         
         public Enemy(double x, double y, int maxHp, int damage, double speed) {
-            super(x, y, 40, 40); // Default size (override per enemy type)
+            super(x, y, 72, 72);
             this.state = EnemyState.WALK;
             this.hp = maxHp;
             this.maxHp = maxHp;
             this.damage = damage;
             this.speed = speed;
-            this.attackRange = 50; // Placeholder
+            this.attackRange = 56;
             this.attackCooldown = 1000; // 1 second between attacks
             this.attackCooldownRemaining = 0;
         }
         
         @Override
         public void update(double deltaTime) {
-            // TODO: Walk toward player, attack on cooldown
+            // Use update(deltaTime, player) for AI behavior.
+        }
+
+        public void update(double deltaTime, Player player) {
+            if (isDead()) {
+                state = EnemyState.DEAD;
+                return;
+            }
+
+            long deltaMs = (long) (deltaTime * 1000);
+            if (attackCooldownRemaining > 0) {
+                attackCooldownRemaining -= deltaMs;
+                if (attackCooldownRemaining < 0) {
+                    attackCooldownRemaining = 0;
+                }
+            }
+
+            double distanceX = player.getX() - x;
+            facing = distanceX >= 0 ? 1 : -1;
+
+            if (Math.abs(distanceX) <= attackRange) {
+                state = EnemyState.ATTACK;
+                velocityX = 0;
+                if (attackCooldownRemaining == 0) {
+                    player.takeDamage(damage);
+                    attackCooldownRemaining = attackCooldown;
+                }
+            } else {
+                state = EnemyState.WALK;
+                walkToward(player.getX(), deltaTime);
+            }
+
+            y = GROUND_Y - height;
         }
         
-        public void walkToward(double targetX) { /* TODO */ }
-        public void attack() { /* TODO */ }
-        public void takeDamage(int damage) { /* TODO */ }
+        public void walkToward(double targetX, double deltaTime) {
+            if (targetX > x) {
+                velocityX = speed;
+            } else {
+                velocityX = -speed;
+            }
+            x += velocityX * deltaTime;
+        }
+
+        public void walkToward(double targetX) {
+            // Backwards-compatible stub.
+            walkToward(targetX, 0);
+        }
+
+        public void attack() {
+            state = EnemyState.ATTACK;
+        }
+
+        public void takeDamage(int damage) {
+            if (state == EnemyState.DEAD) {
+                return;
+            }
+            hp -= damage;
+            if (hp <= 0) {
+                hp = 0;
+                state = EnemyState.DEAD;
+                velocityX = 0;
+            } else {
+                state = EnemyState.HURT;
+            }
+        }
         
         public EnemyState getState() { return state; }
         public int getHp() { return hp; }
@@ -215,19 +468,28 @@ public class GameModel {
     // ========== ENEMY SUBCLASSES ==========
     public static class Goblin extends Enemy {
         public Goblin(double x, double y) {
-            super(x, y, 30, 5, 1.0);
+            super(x, y, 30, 5, 100.0);
+            this.width = 72;
+            this.height = 72;
+            this.y = GROUND_Y - height;
         }
     }
     
     public static class Wolf extends Enemy {
         public Wolf(double x, double y) {
-            super(x, y, 40, 10, 2.5);
+            super(x, y, 40, 10, 170.0);
+            this.width = 104;
+            this.height = 80;
+            this.y = GROUND_Y - height;
         }
     }
     
     public static class Rogue extends Enemy {
         public Rogue(double x, double y) {
-            super(x, y, 60, 15, 1.5);
+            super(x, y, 60, 15, 130.0);
+            this.width = 86;
+            this.height = 96;
+            this.y = GROUND_Y - height;
         }
     }
     
@@ -257,6 +519,7 @@ public class GameModel {
     
     // ========== SPAWNER CLASS ==========
     public static class Spawner {
+        private final Random random = new Random();
         private int level;
         private long spawnInterval; // milliseconds
         private long spawnTimer;
@@ -274,22 +537,74 @@ public class GameModel {
          * Configure spawning rules based on level.
          */
         private void configureLevelSpawning() {
-            // TODO: Set enemy types, intervals, caps per level
+            if (level == 1) {
+                spawnInterval = 3200;
+                maxEnemiesOnScreen = 3;
+            } else if (level == 2) {
+                spawnInterval = 2800;
+                maxEnemiesOnScreen = 3;
+            } else if (level == 3) {
+                spawnInterval = 2400;
+                maxEnemiesOnScreen = 4;
+            } else {
+                spawnInterval = 2100;
+                maxEnemiesOnScreen = 4;
+            }
         }
         
         /**
          * Update spawner and add enemies to the list if conditions met.
          */
         public void update(double deltaTime, List<Enemy> activeEnemies) {
-            // TODO: Check interval and spawn cap, create new enemies
+            if (activeEnemies.size() >= maxEnemiesOnScreen) {
+                return;
+            }
+
+            spawnTimer += (long) (deltaTime * 1000);
+            if (spawnTimer >= spawnInterval) {
+                spawnTimer = 0;
+                Enemy spawned = spawnRandomEnemy();
+                if (spawned != null) {
+                    activeEnemies.add(spawned);
+                }
+            }
         }
         
         /**
          * Create a random enemy based on level config.
          */
-        private Enemy spawnRandomEnemy() {
-            // TODO: Instantiate appropriate enemy type
-            return null;
+        public Enemy spawnRandomEnemy() {
+            int spawnX = WORLD_WIDTH + 20;
+            int roll;
+            if (level == 1) {
+                return new Goblin(spawnX, GROUND_Y - 72);
+            }
+
+            if (level == 2) {
+                roll = random.nextInt(2);
+                return (roll == 0) ? new Goblin(spawnX, GROUND_Y - 72) : new Wolf(spawnX, GROUND_Y - 80);
+            }
+
+            if (level == 3) {
+                roll = random.nextInt(3);
+                if (roll == 0) {
+                    return new Goblin(spawnX, GROUND_Y - 72);
+                }
+                if (roll == 1) {
+                    return new Wolf(spawnX, GROUND_Y - 80);
+                }
+                return new Rogue(spawnX, GROUND_Y - 96);
+            }
+
+            // Level 4: all enemy types.
+            roll = random.nextInt(3);
+            if (roll == 0) {
+                return new Goblin(spawnX, GROUND_Y - 72);
+            }
+            if (roll == 1) {
+                return new Wolf(spawnX, GROUND_Y - 80);
+            }
+            return new Rogue(spawnX, GROUND_Y - 96);
         }
     }
 }
