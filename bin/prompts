@@ -292,12 +292,11 @@ StateController restart second: false
 MethodTester: tests complete."
 
 
-Now , the charichters are changing their look (frames)  quick and continues, which is not what is supposed to be. They supposed to have one animation for wallking, one for attacking, one for standing, one for kicking for the player for example, and so on. These can be decidede from the raws from the iamges am sharing now, where for player for example last raw is for running animation, and so on. 
-
-Also i want to make W for jumbing as well, and add animation that is the second in the first raw, which is going down, for S . So we have two jumbing the space and W. Read, understand, analyse and best align each animations with its own methodes and functions and so for all the assets . Think deep and long and correct, wihtout breaking any methodes or functions or anything else where everything else stays the same as it is and only changing in GameView what needed and others if any needed. 
+Now , the charichters are changing their look (frames)  quick and continues, which is not what is supposed to be. They supposed to have one animation for wallking, one for attacking, one for standing, one for kicking for the player for example, and so on. These can be decidede from the raws from the iamges am sharing now, where 
 
 
-Prompt 7 : Results 2 : Project outline was created, and classpath to make it easier for the compiler to find and understand which files to do, which all are in a new made folder called bin. This worked and java runs and i see the game and everything works as jumbs, attacks, restart, pause, only few enhancments needed. Also the tester is working correctyl with new methoes tests :
+
+Prompt 8 : Project outline was created, and classpath to make it easier for the compiler to find and understand which files to do, which all are in a new made folder called bin. This worked and java runs and i see the game and everything works as jumbs, attacks, restart, pause, only few enhancments needed. Also the tester is working correctyl with new methoes tests :
 ".10-hotspot\bin\java.exe" -XX:+ShowCodeDetailsInExceptionMessages -cp "C:\Users\ERC\OneDrive - Minnesota State\Desktop\final-game\bin" MethodTester "
 MethodTester: starting tests...
 Initial player HP: 100
@@ -326,8 +325,91 @@ Also i want to make W for jumbing as well, and add animation that is the second 
 
 
 
+Results : The animations works, levels works, other functions are good. The animations works randomly tho, where it is not correcty, i showed another expert AI the animations to extract the correcte animation ways, and here is what he said :
+"
+Good — I can see all four sheets clearly now and read your full PROMPTS.md history. Let me analyze every sheet pixel-by-pixel first, then give you two precise code blocks: one for GameView (animation system) and one tiny GameController line for W-jump.
+
+**Root cause of the flickering:** the animation is advancing one frame every game tick (60×/second). Pixel-art characters look right at 6–10 frames/second. Fix = only advance the frame every 8–10 ticks.
+
+---
+
+## Sprite sheet analysisNow I have everything. Let me write the final code.Here's everything confirmed and explained clearly:
+
+---
+
+**Confirmed sprite sheet layouts** (measured, not guessed):
+
+| Sheet | Frame size | Grid | Key rows |
+|---|---|---|---|
+| Player | 46×40 px | 8×5 | Row0=Idle/Crouch, Row1=Walk, Row2=Jump+Kick, Row3=Punch, Row4=Run |
+| Goblin | 64×64 px | 11×5 | Row1=Walk Left, Row3=Walk Right, Row4=Attack |
+| Rogue | 40×40 px | 8×8 | Row1=Walk Left, Row3=Walk Right, Row5=Attack Left, Row7=Attack Right |
+| Wolf | 64×64 px | 7×6 (starts x=192) | Row1=Walk, Row3=Attack |
+
+**What the file contains — 7 numbered steps:**
+1. New fields to add at the top of GameView
+2. The `AnimClip` inner class (drop in before the closing `}`)
+3. `loadAnimations()` method — call from constructor
+4. `drawSprite()` and `getPlayerClip()` / `getEnemyClip()` helpers
+5. The `paintComponent` character-drawing block that replaces the flickering code
+6. 3-line GameModel change (add `CROUCH` state + getter)
+7. GameController — add `VK_W` for jump, `VK_S` for crouch
+
+**The fix for flickering:** `FRAME_DELAY = 8` means the frame only advances every 8 game ticks, giving ~7.5 animation FPS instead of 60. That's exactly what pixel art looks like in real games.
+
+Paste each step in order, run MethodTester after step 6 to confirm nothing broke, then run the game. The checklist at the bottom of the file tells you what to verify.
+
+"
+Am also sharing its file, which by the way is not a good refrence in the naming and so as he has no access to the files here , use it to understand how to do the animation correctly and fit it and costomized it for our codes and files names without changing anything else. GameView Only unless nessaery neeeded somewhere else. 
+
+
+
+Prompt 9 : The animations works, levels works,keys works, other functions are good. The animations works randomly tho, where it is not correctly, i showed another expert AI the animations to extract the correcte animation ways, and here is what he said :
+"
+Good — I can see all four sheets clearly now and read your full PROMPTS.md history. Let me analyze every sheet pixel-by-pixel first, then give you two precise code blocks: one for GameView (animation system) and one tiny GameController line for W-jump.
+
+**Root cause of the flickering:** the animation is advancing one frame every game tick (60×/second). Pixel-art characters look right at 6–10 frames/second. Fix = only advance the frame every 8–10 ticks.
+
+---
+
+## Sprite sheet analysisNow I have everything. Let me write the final code.Here's everything confirmed and explained clearly:
+
+---
+
+**Confirmed sprite sheet layouts** (measured, not guessed):
+
+| Sheet | Frame size | Grid | Key rows |
+|---|---|---|---|
+| Player | 46×40 px | 8×5 | Row0=Idle/Crouch, Row1=Walk, Row2=Jump+Kick, Row3=Punch, Row4=Run |
+| Goblin | 64×64 px | 11×5 | Row1=Walk Left, Row3=Walk Right, Row4=Attack |
+| Rogue | 40×40 px | 8×8 | Row1=Walk Left, Row3=Walk Right, Row5=Attack Left, Row7=Attack Right |
+| Wolf | 64×64 px | 7×6 (starts x=192) | Row1=Walk, Row3=Attack |
+
+**What the file contains — 7 numbered steps:**
+1. New fields to add at the top of GameView
+2. The `AnimClip` inner class (drop in before the closing `}`)
+3. `loadAnimations()` method — call from constructor
+4. `drawSprite()` and `getPlayerClip()` / `getEnemyClip()` helpers
+5. The `paintComponent` character-drawing block that replaces the flickering code
+6. 3-line GameModel change (add `CROUCH` state + getter)
+7. GameController — add `VK_W` for jump, `VK_S` for crouch
+
+**The fix for flickering:** `FRAME_DELAY = 8` means the frame only advances every 8 game ticks, giving ~7.5 animation FPS instead of 60. That's exactly what pixel art looks like in real games.
+
+Paste each step in order, run MethodTester after step 6 to confirm nothing broke, then run the game. The checklist at the bottom of the file tells you what to verify.
+
+"
+Am also sharing its file, which by the way is not a good refrence in the naming and so as he has no access to the files here , use it to understand how to do the animation correctly and fit it and costomized it for our codes and files names without changing anything else. GameView Only unless nessaery neeeded somewhere else. 
+
+
 
 Results : 
+
+
+
+
+
+
 
 I am partway through building [game] in Java with Swing using MVC.
 

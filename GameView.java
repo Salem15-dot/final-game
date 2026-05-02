@@ -6,6 +6,7 @@
 import javax.swing.*;
 import java.awt.*;
 import java.awt.image.BufferedImage;
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -69,6 +70,46 @@ public class GameView {
         private HUDView hudView;
         private Map<Class<?>, CharacterView> characterViews;
         
+        // Animation system fields
+        private BufferedImage playerSheet, goblinSheet, rogueSheet, wolfSheet;
+        private int animTick = 0;
+        private static final int FRAME_DELAY = 8; // advance 1 frame every 8 game ticks ≈ 7.5 fps
+        
+        // AnimClip instances for each animation
+        private AnimClip playerIdle, playerCrouch, playerWalk, playerRun,
+            playerJump, playerFall, playerPunch, playerKick, playerHurt,
+            goblinWalkL, goblinWalkR, goblinAttackL, goblinAttackR,
+            rogueWalkL, rogueWalkR, rogueAttackL, rogueAttackR,
+            wolfWalkL, wolfAttackL;
+        
+        /**
+         * AnimClip describes one animation strip on a sprite sheet.
+         */
+        private static class AnimClip {
+            final BufferedImage sheet;
+            final int row, startCol, frameCount, fw, fh;
+
+            AnimClip(BufferedImage sheet, int row, int startCol, int frameCount, int fw, int fh) {
+                this.sheet = sheet;
+                this.row = row;
+                this.startCol = startCol;
+                this.frameCount = frameCount;
+                this.fw = fw;
+                this.fh = fh;
+            }
+
+            /** Returns the correct sub-image for the given animation frame index. */
+            BufferedImage getFrame(int frameIndex) {
+                int col = startCol + (frameIndex % frameCount);
+                if (sheet == null || col < 0 || row < 0) return null;
+                try {
+                    return sheet.getSubimage(col * fw, row * fh, fw, fh);
+                } catch (Exception e) {
+                    return null;
+                }
+            }
+        }
+        
         public GamePanel(GameModel model) {
             this.model = model;
             setPreferredSize(new Dimension(GameModel.WORLD_WIDTH, GameModel.WORLD_HEIGHT));
@@ -84,6 +125,9 @@ public class GameView {
             characterViews.put(GameModel.Goblin.class, new GoblinView());
             characterViews.put(GameModel.Wolf.class, new WolfView());
             characterViews.put(GameModel.Rogue.class, new RogueView());
+            
+            // Load sprite sheet animations
+            loadAnimations();
         }
         
         @Override
@@ -95,19 +139,41 @@ public class GameView {
             // Draw background
             backgroundView.draw(g2d, getWidth(), getHeight());
             
-            // Draw player
-            if (model.getPlayer() != null) {
-                CharacterView playerView = characterViews.get(GameModel.Player.class);
-                if (playerView != null) {
-                    playerView.draw(g2d, model.getPlayer());
-                }
-            }
+            // Advance animation tick
+            animTick++;
             
-            // Draw enemies
+            GameModel.Player player = model.getPlayer();
+            
+            // Draw enemies (behind the player visually)
             for (GameModel.Enemy enemy : model.getEnemies()) {
-                CharacterView enemyView = characterViews.get(enemy.getClass());
-                if (enemyView != null) {
-                    enemyView.draw(g2d, enemy);
+                if (enemy.isDead()) continue;
+
+                boolean facingLeft = (enemy.getX() > player.getX());
+                AnimClip clip = getEnemyClip(enemy, facingLeft);
+                if (clip == null) continue;
+                
+                int frameIndex = (animTick / FRAME_DELAY) % clip.frameCount;
+                BufferedImage sprite = clip.getFrame(frameIndex);
+                
+                // Scale: goblin/rogue are small; scale up so they match hero
+                int scale = (enemy.getClass().getSimpleName().equals("Goblin")) ? 2
+                          : (enemy.getClass().getSimpleName().equals("Rogue")) ? 3
+                          : 2; // Wolf
+
+                // Wolf is left-facing only; flip if enemy is left of player
+                boolean shouldFlip = !facingLeft && enemy.getClass().getSimpleName().equals("Wolf");
+
+                drawSprite(g2d, sprite, (int)enemy.getX(), (int)enemy.getY(), scale, shouldFlip);
+            }
+
+            // Draw player
+            if (player != null) {
+                AnimClip pClip = getPlayerClip(player.getState(), model.isCrouching());
+                if (pClip != null) {
+                    int pFrame = (animTick / FRAME_DELAY) % pClip.frameCount;
+                    BufferedImage pSprite = pClip.getFrame(pFrame);
+                    boolean playerFacesLeft = (player.getFacing() < 0);
+                    drawSprite(g2d, pSprite, (int)player.getX(), (int)player.getY(), 3, playerFacesLeft);
                 }
             }
             
@@ -115,8 +181,6 @@ public class GameView {
             hudView.draw(g2d, model);
 
             // Screen overlays: pause, respawn, game over, victory
-            GameModel.Player player = model.getPlayer();
-
             if (model.getGameState() == GameModel.GameState.PAUSED) {
                 drawDarkOverlay(g2d, "PAUSED - Press P or Esc to resume");
             } else if (model.getGameState() == GameModel.GameState.GAME_OVER) {
@@ -140,6 +204,103 @@ public class GameView {
             int x = (getWidth() - fm.stringWidth(message)) / 2;
             int y = (getHeight() / 2) - (fm.getHeight() / 2) + fm.getAscent();
             g2d.drawString(message, x, y);
+        }
+        
+        /**
+         * Load all sprite sheets and create AnimClip instances.
+         * Call from constructor.
+         */
+        private void loadAnimations() {
+            try {
+                playerSheet = ImageIO.read(new File("assets/player-spritemap-v9.png"));
+                goblinSheet = ImageIO.read(new File("assets/goblin.png"));
+                rogueSheet = ImageIO.read(new File("assets/rogue spritesheet calciumtrice.png"));
+                wolfSheet = ImageIO.read(new File("assets/wolfsheet1.png"));
+            } catch (IOException e) {
+                System.err.println("ERROR loading sprite sheet: " + e.getMessage());
+                e.printStackTrace();
+                return;
+            }
+
+            // Player (46 × 40 px per frame)
+            int pw = 46, ph = 40;
+            playerIdle = new AnimClip(playerSheet, 0, 0, 1, pw, ph);
+            playerCrouch = new AnimClip(playerSheet, 0, 1, 1, pw, ph);
+            playerWalk = new AnimClip(playerSheet, 1, 0, 8, pw, ph);
+            playerRun = new AnimClip(playerSheet, 4, 0, 8, pw, ph);
+            playerJump = new AnimClip(playerSheet, 2, 0, 3, pw, ph);
+            playerFall = new AnimClip(playerSheet, 2, 2, 1, pw, ph);
+            playerPunch = new AnimClip(playerSheet, 3, 0, 6, pw, ph);
+            playerKick = new AnimClip(playerSheet, 2, 3, 3, pw, ph);
+            playerHurt = new AnimClip(playerSheet, 0, 0, 1, pw, ph);
+
+            // Goblin (64 × 64 px per frame)
+            int gw = 64, gh = 64;
+            goblinWalkL = new AnimClip(goblinSheet, 1, 0, 9, gw, gh);
+            goblinWalkR = new AnimClip(goblinSheet, 3, 0, 9, gw, gh);
+            goblinAttackL = new AnimClip(goblinSheet, 4, 0, 5, gw, gh);
+            goblinAttackR = new AnimClip(goblinSheet, 4, 0, 5, gw, gh);
+
+            // Rogue (40 × 40 px per frame)
+            int rw = 40, rh = 40;
+            rogueWalkL = new AnimClip(rogueSheet, 1, 0, 8, rw, rh);
+            rogueWalkR = new AnimClip(rogueSheet, 3, 0, 8, rw, rh);
+            rogueAttackL = new AnimClip(rogueSheet, 5, 0, 8, rw, rh);
+            rogueAttackR = new AnimClip(rogueSheet, 7, 0, 8, rw, rh);
+
+            // Wolf (64 × 64 px per frame, right section offset = col 3)
+            int ww = 64, wh = 64;
+            wolfWalkL = new AnimClip(wolfSheet, 1, 3, 7, ww, wh);
+            wolfAttackL = new AnimClip(wolfSheet, 3, 3, 6, ww, wh);
+        }
+
+        /**
+         * Draw a sprite at (x, y) scaled by 'scale', optionally flipped horizontally.
+         */
+        private void drawSprite(Graphics g, BufferedImage sprite, int x, int y, int scale, boolean flipH) {
+            if (sprite == null) return;
+            int dw = sprite.getWidth() * scale;
+            int dh = sprite.getHeight() * scale;
+            if (flipH) {
+                g.drawImage(sprite, x + dw, y, -dw, dh, null);
+            } else {
+                g.drawImage(sprite, x, y, dw, dh, null);
+            }
+        }
+
+        /**
+         * Get the correct AnimClip for the player's current state.
+         */
+        private AnimClip getPlayerClip(GameModel.PlayerState state, boolean isCrouching) {
+            if (isCrouching && state == GameModel.PlayerState.IDLE) return playerCrouch;
+            switch (state) {
+                case WALK: return playerWalk;
+                case RUN: return playerRun;
+                case JUMP: return playerJump;
+                case PUNCH: return playerPunch;
+                case KICK: return playerKick;
+                case HURT: return playerHurt;
+                case FALL: return playerFall;
+                default: return playerIdle;
+            }
+        }
+
+        /**
+         * Get the correct AnimClip for an enemy based on type, state, and direction.
+         * 'facingLeft' = true when enemy is to the right of the player (walks left toward them).
+         */
+        private AnimClip getEnemyClip(GameModel.Enemy enemy, boolean facingLeft) {
+            String type = enemy.getClass().getSimpleName();
+            boolean atk = (enemy.getState() == GameModel.EnemyState.ATTACK);
+
+            if (type.equals("Wolf")) {
+                return atk ? wolfAttackL : wolfWalkL;
+            } else if (type.equals("Rogue")) {
+                return atk ? (facingLeft ? rogueAttackL : rogueAttackR) 
+                          : (facingLeft ? rogueWalkL : rogueWalkR);
+            } else { // Goblin
+                return atk ? goblinAttackL : (facingLeft ? goblinWalkL : goblinWalkR);
+            }
         }
     }
     

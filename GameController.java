@@ -210,6 +210,14 @@ public class GameController {
             // Movement
             player.setRunHeld(keyboardController.isRunHeld());
             player.setDownHeld(keyboardController.isDownHeld());
+            
+            // Handle crouching (S key while on ground)
+            if (keyboardController.isDownHeld() && player.isOnGround()) {
+                player.setCrouching(true);
+            } else {
+                player.setCrouching(false);
+            }
+            
             if (keyboardController.isLeftHeld()) {
                 player.moveLeft();
             }

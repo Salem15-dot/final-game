@@ -17,7 +17,7 @@ public class GameModel {
     
     // Player state enum
     public enum PlayerState {
-        IDLE, WALK, RUN, JUMP, FALL, PUNCH, KICK, HURT, DEAD, RESPAWNING
+        IDLE, CROUCH, WALK, RUN, JUMP, FALL, PUNCH, KICK, HURT, DEAD, RESPAWNING
     }
     
     // Enemy state enum
@@ -168,6 +168,7 @@ public class GameModel {
     public Player getPlayer() { return player; }
     public List<Enemy> getEnemies() { return enemies; }
     public Spawner getSpawner() { return spawner; }
+    public boolean isCrouching() { return player != null && player.isCrouching(); }
     
     // ========== PLAYER CLASS ==========
     public static class Player extends GameEntity {
@@ -193,6 +194,7 @@ public class GameModel {
         private boolean downHeld;
         private long actionStateTimer;
         private int currentAttackDamage;
+        private boolean crouching;
         
         public Player() {
             super(100, CHARACTER_GROUND_Y - 100, 92, 100);
@@ -210,6 +212,7 @@ public class GameModel {
             this.downHeld = false;
             this.actionStateTimer = 0;
             this.currentAttackDamage = 0;
+            this.crouching = false;
         }
         
         @Override
@@ -412,6 +415,9 @@ public class GameModel {
         public boolean hasActiveAttack() { return attackFrameWindow > 0; }
         public int getCurrentAttackDamage() { return currentAttackDamage; }
         public boolean isDownHeld() { return downHeld; }
+        public boolean isOnGround() { return onGround; }
+        public boolean isCrouching() { return crouching; }
+        public void setCrouching(boolean c) { this.crouching = c; }
     }
     
     // ========== ENEMY BASE CLASS ==========
