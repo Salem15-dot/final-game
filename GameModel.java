@@ -169,6 +169,7 @@ public class GameModel {
     public List<Enemy> getEnemies() { return enemies; }
     public Spawner getSpawner() { return spawner; }
     public boolean isCrouching() { return player != null && player.isCrouching(); }
+    public void resetPlayer() { this.player = new Player(); }
     
     // ========== PLAYER CLASS ==========
     public static class Player extends GameEntity {

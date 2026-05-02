@@ -317,6 +317,7 @@ public class GameController {
          * Start a new game from the title screen.
          */
         public void startNewGame() {
+            model.resetPlayer();
             model.setGameState(GameModel.GameState.PLAYING);
             model.startLevel(1);
         }

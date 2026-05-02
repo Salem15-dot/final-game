@@ -150,14 +150,17 @@ public class GameView {
                 BufferedImage sprite = clip.getFrame(0);
                 
                 // Scale: goblin/rogue are small; scale up so they match hero
-                int scale = (enemy.getClass().getSimpleName().equals("Goblin")) ? 2
-                          : (enemy.getClass().getSimpleName().equals("Rogue")) ? 3
+                String enemyType = enemy.getClass().getSimpleName();
+                int scale = enemyType.equals("Goblin") ? 2
+                          : enemyType.equals("Rogue") ? 3
                           : 2; // Wolf
 
-                // Wolf is left-facing only; flip if enemy is left of player
-                boolean shouldFlip = !facingLeft && enemy.getClass().getSimpleName().equals("Wolf");
+                int drawY = (int) enemy.getY() + getEnemyDrawYOffset(enemyType);
 
-                drawSprite(g2d, sprite, (int)enemy.getX(), (int)enemy.getY(), scale, shouldFlip);
+                // Wolf is left-facing only; flip if enemy is left of player
+                boolean shouldFlip = !facingLeft && enemyType.equals("Wolf");
+
+                drawSprite(g2d, sprite, (int) enemy.getX(), drawY, scale, shouldFlip);
             }
 
             // Draw player
@@ -220,7 +223,7 @@ public class GameView {
             playerIdle = new AnimClip(playerSheet, 0, 0, 1, pw, ph);
             playerCrouch = new AnimClip(playerSheet, 0, 1, 1, pw, ph);
             playerPunch = new AnimClip(playerSheet, 0, 3, 1, pw, ph);
-            playerKick = new AnimClip(playerSheet, 0, 6, 1, pw, ph);
+            playerKick = new AnimClip(playerSheet, 2, 3, 1, pw, ph);
             playerJump = new AnimClip(playerSheet, 0, 7, 1, pw, ph);
             playerWalk = new AnimClip(playerSheet, 3, 0, 1, pw, ph);
             playerRun = new AnimClip(playerSheet, 3, 4, 1, pw, ph);
@@ -289,11 +292,22 @@ public class GameView {
             if (type.equals("Wolf")) {
                 return atk ? wolfAttackL : wolfWalkL;
             } else if (type.equals("Rogue")) {
-                return atk ? (facingLeft ? rogueAttackL : rogueAttackR) 
-                          : (facingLeft ? rogueWalkL : rogueWalkR);
+                return atk ? (facingLeft ? rogueAttackR : rogueAttackL)
+                          : (facingLeft ? rogueWalkR : rogueWalkL);
             } else { // Goblin
-                return atk ? goblinAttackL : (facingLeft ? goblinWalkL : goblinWalkR);
+                return atk ? (facingLeft ? goblinAttackR : goblinAttackL)
+                          : (facingLeft ? goblinWalkR : goblinWalkL);
             }
+        }
+
+        private int getEnemyDrawYOffset(String enemyType) {
+            if (enemyType.equals("Wolf")) {
+                return 18;
+            }
+            if (enemyType.equals("Rogue")) {
+                return 10;
+            }
+            return 0;
         }
     }
     
