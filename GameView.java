@@ -215,36 +215,36 @@ public class GameView {
                 return;
             }
 
-            // Player (46 × 40 px per frame)
-            int pw = 46, ph = 40;
+            // PLAYER: 46 x 50, 4 rows x 8 cols.
+            int pw = 46, ph = 50;
             playerIdle = new AnimClip(playerSheet, 0, 0, 1, pw, ph);
             playerCrouch = new AnimClip(playerSheet, 0, 1, 1, pw, ph);
-            playerWalk = new AnimClip(playerSheet, 1, 0, 1, pw, ph);
-            playerRun = new AnimClip(playerSheet, 4, 0, 1, pw, ph);
-            playerJump = new AnimClip(playerSheet, 2, 0, 1, pw, ph);
-            playerFall = new AnimClip(playerSheet, 2, 2, 1, pw, ph);
-            playerPunch = new AnimClip(playerSheet, 3, 0, 1, pw, ph);
-            playerKick = new AnimClip(playerSheet, 2, 3, 1, pw, ph);
-            playerHurt = new AnimClip(playerSheet, 0, 0, 1, pw, ph);
+            playerPunch = new AnimClip(playerSheet, 0, 3, 1, pw, ph);
+            playerKick = new AnimClip(playerSheet, 0, 6, 1, pw, ph);
+            playerJump = new AnimClip(playerSheet, 0, 7, 1, pw, ph);
+            playerWalk = new AnimClip(playerSheet, 3, 0, 1, pw, ph);
+            playerRun = new AnimClip(playerSheet, 3, 4, 1, pw, ph);
+            playerHurt = new AnimClip(playerSheet, 2, 0, 1, pw, ph);
+            playerFall = new AnimClip(playerSheet, 2, 1, 1, pw, ph);
 
-            // Goblin (64 × 64 px per frame)
+            // GOBLIN: 64 x 64, 5 rows x 11 cols.
             int gw = 64, gh = 64;
             goblinWalkL = new AnimClip(goblinSheet, 1, 0, 1, gw, gh);
             goblinWalkR = new AnimClip(goblinSheet, 3, 0, 1, gw, gh);
-            goblinAttackL = new AnimClip(goblinSheet, 4, 0, 1, gw, gh);
-            goblinAttackR = new AnimClip(goblinSheet, 4, 0, 1, gw, gh);
+            goblinAttackL = new AnimClip(goblinSheet, 1, 0, 1, gw, gh);
+            goblinAttackR = new AnimClip(goblinSheet, 3, 0, 1, gw, gh);
 
-            // Rogue (40 × 40 px per frame)
-            int rw = 40, rh = 40;
+            // ROGUE: 32 x 32, use one clean side-facing frame.
+            int rw = 32, rh = 32;
             rogueWalkL = new AnimClip(rogueSheet, 1, 0, 1, rw, rh);
-            rogueWalkR = new AnimClip(rogueSheet, 3, 0, 1, rw, rh);
-            rogueAttackL = new AnimClip(rogueSheet, 5, 0, 1, rw, rh);
-            rogueAttackR = new AnimClip(rogueSheet, 7, 0, 1, rw, rh);
+            rogueWalkR = new AnimClip(rogueSheet, 1, 0, 1, rw, rh);
+            rogueAttackL = new AnimClip(rogueSheet, 1, 0, 1, rw, rh);
+            rogueAttackR = new AnimClip(rogueSheet, 1, 0, 1, rw, rh);
 
-            // Wolf (64 × 64 px per frame, right section offset = col 3)
+            // WOLF: quadruped section starts at col 5.
             int ww = 64, wh = 64;
-            wolfWalkL = new AnimClip(wolfSheet, 1, 3, 1, ww, wh);
-            wolfAttackL = new AnimClip(wolfSheet, 3, 3, 1, ww, wh);
+            wolfWalkL = new AnimClip(wolfSheet, 0, 5, 1, ww, wh);
+            wolfAttackL = new AnimClip(wolfSheet, 0, 5, 1, ww, wh);
         }
 
         /**
