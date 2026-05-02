@@ -17,7 +17,7 @@ public class GameModel {
     
     // Player state enum
     public enum PlayerState {
-        IDLE, WALK, RUN, JUMP, PUNCH, KICK, HURT, DEAD, RESPAWNING
+        IDLE, WALK, RUN, JUMP, FALL, PUNCH, KICK, HURT, DEAD, RESPAWNING
     }
     
     // Enemy state enum
@@ -190,6 +190,7 @@ public class GameModel {
         private long respawnTimer;
         private boolean moveInputThisFrame;
         private boolean runHeld;
+        private boolean downHeld;
         private long actionStateTimer;
         private int currentAttackDamage;
         
@@ -206,6 +207,7 @@ public class GameModel {
             this.respawnTimer = 0;
             this.moveInputThisFrame = false;
             this.runHeld = false;
+            this.downHeld = false;
             this.actionStateTimer = 0;
             this.currentAttackDamage = 0;
         }
@@ -262,11 +264,14 @@ public class GameModel {
                 y = CHARACTER_GROUND_Y - height;
                 velocityY = 0;
                 onGround = true;
-                if (state == PlayerState.JUMP) {
+                if (state == PlayerState.JUMP || state == PlayerState.FALL) {
                     state = PlayerState.IDLE;
                 }
             } else {
                 onGround = false;
+                if (velocityY > 0 || downHeld) {
+                    state = PlayerState.FALL;
+                }
             }
 
             if (!moveInputThisFrame && onGround && state != PlayerState.PUNCH && state != PlayerState.KICK && state != PlayerState.HURT) {
@@ -278,6 +283,7 @@ public class GameModel {
 
             moveInputThisFrame = false;
             runHeld = false;
+            downHeld = false;
         }
         
         public void moveLeft() {
@@ -306,6 +312,10 @@ public class GameModel {
 
         public void setRunHeld(boolean runHeld) {
             this.runHeld = runHeld;
+        }
+
+        public void setDownHeld(boolean downHeld) {
+            this.downHeld = downHeld;
         }
 
         public void jump() {
@@ -381,6 +391,7 @@ public class GameModel {
             attackCooldownRemaining = 0;
             attackFrameWindow = 0;
             attackDelivered = false;
+            downHeld = false;
         }
         
         public long getRespawnRemaining() { return respawnTimer; }
@@ -400,6 +411,7 @@ public class GameModel {
         public int getFacing() { return facing; }
         public boolean hasActiveAttack() { return attackFrameWindow > 0; }
         public int getCurrentAttackDamage() { return currentAttackDamage; }
+        public boolean isDownHeld() { return downHeld; }
     }
     
     // ========== ENEMY BASE CLASS ==========

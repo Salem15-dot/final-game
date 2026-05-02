@@ -9,6 +9,7 @@ import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.IdentityHashMap;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -308,16 +309,25 @@ public class GameView {
             currentFrameIndex = 0;
             elapsedTime = 0;
         }
+
+        public Animation copy() {
+            Animation cloned = new Animation(new ArrayList<>(frames), msPerFrame, looping);
+            cloned.currentFrameIndex = currentFrameIndex;
+            cloned.elapsedTime = elapsedTime;
+            return cloned;
+        }
     }
     
     // ========== CHARACTER VIEW BASE CLASS ==========
     public static abstract class CharacterView {
         protected Map<Enum<?>, Animation> animationMap;
-        private long lastUpdateMs;
+        private final Map<GameModel.GameEntity, Map<Enum<?>, Animation>> entityAnimationCache;
+        private final Map<GameModel.GameEntity, Long> entityLastUpdateMs;
         
         public CharacterView() {
             this.animationMap = new HashMap<>();
-            this.lastUpdateMs = System.currentTimeMillis();
+            this.entityAnimationCache = new IdentityHashMap<>();
+            this.entityLastUpdateMs = new IdentityHashMap<>();
             loadAnimations();
         }
         
@@ -331,13 +341,16 @@ public class GameView {
          * Draw the character at its current state.
          */
         public void draw(Graphics2D g, GameModel.GameEntity entity) {
-            // Get appropriate animation
-            Animation anim = getAnimationForEntity(entity);
+            Enum<?> animationState = getAnimationStateForEntity(entity);
+            if (animationState == null) return;
+
+            Animation anim = getEntityAnimation(entity, animationState);
             if (anim == null) return;
 
             long now = System.currentTimeMillis();
-            long delta = Math.max(0, now - lastUpdateMs);
-            lastUpdateMs = now;
+            long lastUpdate = entityLastUpdateMs.getOrDefault(entity, now);
+            long delta = Math.max(0, now - lastUpdate);
+            entityLastUpdateMs.put(entity, now);
             anim.update(delta);
             
             BufferedImage frame = anim.getCurrentFrame();
@@ -367,15 +380,38 @@ public class GameView {
          * Get animation for entity's current state.
          */
         protected abstract Animation getAnimationForEntity(GameModel.GameEntity entity);
+
+        /**
+         * Get the current animation state key for the entity.
+         */
+        protected abstract Enum<?> getAnimationStateForEntity(GameModel.GameEntity entity);
         
         /**
          * Update animation state (call from game loop).
          */
         public void update(long deltaTimeMs, GameModel.GameEntity entity) {
-            Animation anim = getAnimationForEntity(entity);
+            Enum<?> animationState = getAnimationStateForEntity(entity);
+            Animation anim = animationState == null ? null : getEntityAnimation(entity, animationState);
             if (anim != null) {
                 anim.update(deltaTimeMs);
             }
+        }
+
+        private Animation getEntityAnimation(GameModel.GameEntity entity, Enum<?> state) {
+            Map<Enum<?>, Animation> cachedAnimations = entityAnimationCache.computeIfAbsent(entity, key -> new HashMap<>());
+            Animation cachedAnimation = cachedAnimations.get(state);
+            if (cachedAnimation != null) {
+                return cachedAnimation;
+            }
+
+            Animation prototype = animationMap.get(state);
+            if (prototype == null) {
+                return null;
+            }
+
+            Animation copy = prototype.copy();
+            cachedAnimations.put(state, copy);
+            return copy;
         }
     }
     
@@ -387,15 +423,16 @@ public class GameView {
             int frameW = 46;
             int frameH = 50;
 
-            animationMap.put(GameModel.PlayerState.IDLE, buildAnimation(sheet, 0, 8, frameW, frameH, 120, true));
-            animationMap.put(GameModel.PlayerState.WALK, buildAnimation(sheet, 1, 8, frameW, frameH, 90, true));
-            animationMap.put(GameModel.PlayerState.RUN, buildAnimation(sheet, 1, 8, frameW, frameH, 65, true));
-            animationMap.put(GameModel.PlayerState.JUMP, buildAnimation(sheet, 2, 8, frameW, frameH, 140, true));
-            animationMap.put(GameModel.PlayerState.PUNCH, buildAnimation(sheet, 3, 8, frameW, frameH, 70, false));
-            animationMap.put(GameModel.PlayerState.KICK, buildAnimation(sheet, 3, 8, frameW, frameH, 60, false));
-            animationMap.put(GameModel.PlayerState.HURT, buildAnimation(sheet, 0, 8, frameW, frameH, 180, false));
+            animationMap.put(GameModel.PlayerState.IDLE, buildAnimation(sheet, 0, 1, frameW, frameH, 999, false));
+            animationMap.put(GameModel.PlayerState.WALK, buildAnimation(sheet, 1, 6, frameW, frameH, 110, true));
+            animationMap.put(GameModel.PlayerState.RUN, buildAnimation(sheet, 3, 8, frameW, frameH, 75, true));
+            animationMap.put(GameModel.PlayerState.JUMP, buildAnimation(sheet, 2, 4, frameW, frameH, 130, false));
+            animationMap.put(GameModel.PlayerState.FALL, buildAnimation(sheet, 0, 1, frameW, frameH, 999, false));
+            animationMap.put(GameModel.PlayerState.PUNCH, buildAnimation(sheet, 2, 2, frameW, frameH, 110, false));
+            animationMap.put(GameModel.PlayerState.KICK, buildAnimation(sheet, 2, 2, frameW, frameH, 110, false));
+            animationMap.put(GameModel.PlayerState.HURT, buildAnimation(sheet, 0, 1, frameW, frameH, 999, false));
             animationMap.put(GameModel.PlayerState.DEAD, buildAnimation(sheet, 0, 1, frameW, frameH, 999, false));
-            animationMap.put(GameModel.PlayerState.RESPAWNING, buildAnimation(sheet, 0, 8, frameW, frameH, 90, true));
+            animationMap.put(GameModel.PlayerState.RESPAWNING, buildAnimation(sheet, 0, 1, frameW, frameH, 999, false));
         }
         
         @Override
@@ -403,6 +440,16 @@ public class GameView {
             if (!(entity instanceof GameModel.Player)) return null;
             GameModel.Player player = (GameModel.Player) entity;
             return animationMap.getOrDefault(player.getState(), animationMap.get(GameModel.PlayerState.IDLE));
+        }
+
+        @Override
+        protected Enum<?> getAnimationStateForEntity(GameModel.GameEntity entity) {
+            if (!(entity instanceof GameModel.Player)) return null;
+            GameModel.Player player = (GameModel.Player) entity;
+            if (player.getState() == GameModel.PlayerState.JUMP && player.isDownHeld()) {
+                return GameModel.PlayerState.FALL;
+            }
+            return player.getState();
         }
     }
     
@@ -414,9 +461,9 @@ public class GameView {
             int frameW = 64;
             int frameH = 64;
 
-            animationMap.put(GameModel.EnemyState.WALK, buildAnimation(sheet, 2, 9, frameW, frameH, 100, true));
-            animationMap.put(GameModel.EnemyState.ATTACK, buildAnimation(sheet, 3, 6, frameW, frameH, 80, true));
-            animationMap.put(GameModel.EnemyState.HURT, buildAnimation(sheet, 2, 2, frameW, frameH, 120, false));
+            animationMap.put(GameModel.EnemyState.WALK, buildAnimation(sheet, 2, 6, frameW, frameH, 120, true));
+            animationMap.put(GameModel.EnemyState.ATTACK, buildAnimation(sheet, 3, 4, frameW, frameH, 130, false));
+            animationMap.put(GameModel.EnemyState.HURT, buildAnimation(sheet, 2, 1, frameW, frameH, 999, false));
             animationMap.put(GameModel.EnemyState.DEAD, buildAnimation(sheet, 2, 1, frameW, frameH, 999, false));
         }
         
@@ -425,6 +472,12 @@ public class GameView {
             if (!(entity instanceof GameModel.Goblin)) return null;
             GameModel.Goblin goblin = (GameModel.Goblin) entity;
             return animationMap.getOrDefault(goblin.getState(), animationMap.get(GameModel.EnemyState.WALK));
+        }
+
+        @Override
+        protected Enum<?> getAnimationStateForEntity(GameModel.GameEntity entity) {
+            if (!(entity instanceof GameModel.Goblin)) return null;
+            return ((GameModel.Goblin) entity).getState();
         }
     }
     
@@ -436,10 +489,10 @@ public class GameView {
             int frameW = 64;
             int frameH = 64;
 
-            animationMap.put(GameModel.EnemyState.WALK, buildAnimation(sheet, 1, 8, frameW, frameH, 90, true));
-            animationMap.put(GameModel.EnemyState.ATTACK, buildAnimation(sheet, 2, 8, frameW, frameH, 75, true));
-            animationMap.put(GameModel.EnemyState.HURT, buildAnimation(sheet, 3, 4, frameW, frameH, 100, false));
-            animationMap.put(GameModel.EnemyState.DEAD, buildAnimation(sheet, 4, 8, frameW, frameH, 120, false));
+            animationMap.put(GameModel.EnemyState.WALK, buildAnimation(sheet, 1, 6, frameW, frameH, 110, true));
+            animationMap.put(GameModel.EnemyState.ATTACK, buildAnimation(sheet, 2, 4, frameW, frameH, 110, false));
+            animationMap.put(GameModel.EnemyState.HURT, buildAnimation(sheet, 3, 1, frameW, frameH, 999, false));
+            animationMap.put(GameModel.EnemyState.DEAD, buildAnimation(sheet, 4, 1, frameW, frameH, 999, false));
         }
         
         @Override
@@ -447,6 +500,12 @@ public class GameView {
             if (!(entity instanceof GameModel.Wolf)) return null;
             GameModel.Wolf wolf = (GameModel.Wolf) entity;
             return animationMap.getOrDefault(wolf.getState(), animationMap.get(GameModel.EnemyState.WALK));
+        }
+
+        @Override
+        protected Enum<?> getAnimationStateForEntity(GameModel.GameEntity entity) {
+            if (!(entity instanceof GameModel.Wolf)) return null;
+            return ((GameModel.Wolf) entity).getState();
         }
     }
     
@@ -458,10 +517,10 @@ public class GameView {
             int frameW = 64;
             int frameH = 64;
 
-            animationMap.put(GameModel.EnemyState.WALK, buildAnimation(sheet, 1, 5, frameW, frameH, 100, true));
-            animationMap.put(GameModel.EnemyState.ATTACK, buildAnimation(sheet, 2, 5, frameW, frameH, 90, true));
-            animationMap.put(GameModel.EnemyState.HURT, buildAnimation(sheet, 3, 2, frameW, frameH, 130, false));
-            animationMap.put(GameModel.EnemyState.DEAD, buildAnimation(sheet, 4, 5, frameW, frameH, 120, false));
+            animationMap.put(GameModel.EnemyState.WALK, buildAnimation(sheet, 1, 5, frameW, frameH, 110, true));
+            animationMap.put(GameModel.EnemyState.ATTACK, buildAnimation(sheet, 2, 4, frameW, frameH, 120, false));
+            animationMap.put(GameModel.EnemyState.HURT, buildAnimation(sheet, 3, 1, frameW, frameH, 999, false));
+            animationMap.put(GameModel.EnemyState.DEAD, buildAnimation(sheet, 4, 1, frameW, frameH, 999, false));
         }
         
         @Override
@@ -469,6 +528,12 @@ public class GameView {
             if (!(entity instanceof GameModel.Rogue)) return null;
             GameModel.Rogue rogue = (GameModel.Rogue) entity;
             return animationMap.getOrDefault(rogue.getState(), animationMap.get(GameModel.EnemyState.WALK));
+        }
+
+        @Override
+        protected Enum<?> getAnimationStateForEntity(GameModel.GameEntity entity) {
+            if (!(entity instanceof GameModel.Rogue)) return null;
+            return ((GameModel.Rogue) entity).getState();
         }
     }
 

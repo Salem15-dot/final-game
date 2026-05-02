@@ -71,9 +71,10 @@ public class GameController {
         public boolean isLeftHeld() { return heldKeys.contains(KeyEvent.VK_A); }
         public boolean isRightHeld() { return heldKeys.contains(KeyEvent.VK_D); }
         public boolean isRunHeld() { return heldKeys.contains(KeyEvent.VK_SHIFT); }
+        public boolean isDownHeld() { return heldKeys.contains(KeyEvent.VK_S); }
         
         public boolean wasJumpPressed() {
-            return consumeKey(KeyEvent.VK_SPACE);
+            return consumeKey(KeyEvent.VK_SPACE) || consumeKey(KeyEvent.VK_W);
         }
         
         public boolean wasPunchPressed() {
@@ -208,6 +209,7 @@ public class GameController {
             
             // Movement
             player.setRunHeld(keyboardController.isRunHeld());
+            player.setDownHeld(keyboardController.isDownHeld());
             if (keyboardController.isLeftHeld()) {
                 player.moveLeft();
             }

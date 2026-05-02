@@ -292,10 +292,42 @@ StateController restart second: false
 MethodTester: tests complete."
 
 
-Now , the charichters are changing their look (frames)  quick and continues, which is not what is supposed to be. They supposed to have one animation for wallking, one for attacking, one for standing, one for kicking for the player for example, and so on. These can be decidede from the raws from the iamges am sharing now, where 
+Now , the charichters are changing their look (frames)  quick and continues, which is not what is supposed to be. They supposed to have one animation for wallking, one for attacking, one for standing, one for kicking for the player for example, and so on. These can be decidede from the raws from the iamges am sharing now, where for player for example last raw is for running animation, and so on. 
+
+Also i want to make W for jumbing as well, and add animation that is the second in the first raw, which is going down, for S . So we have two jumbing the space and W. Read, understand, analyse and best align each animations with its own methodes and functions and so for all the assets . Think deep and long and correct, wihtout breaking any methodes or functions or anything else where everything else stays the same as it is and only changing in GameView what needed and others if any needed. 
+
+
+Prompt 7 : Results 2 : Project outline was created, and classpath to make it easier for the compiler to find and understand which files to do, which all are in a new made folder called bin. This worked and java runs and i see the game and everything works as jumbs, attacks, restart, pause, only few enhancments needed. Also the tester is working correctyl with new methoes tests :
+".10-hotspot\bin\java.exe" -XX:+ShowCodeDetailsInExceptionMessages -cp "C:\Users\ERC\OneDrive - Minnesota State\Desktop\final-game\bin" MethodTester "
+MethodTester: starting tests...
+Initial player HP: 100
+Initial player lives: 3
+Player moved right: startX=100.0 after=104.16 moved=4.159999999999997
+Player state after jump: JUMP yDelta=-10.790399999999977 onGround=false
+Player state after punch: PUNCH
+Player attack first try: true
+Player attack second try: false
+Spawner created enemy: Goblin
+Enemy HP: 30
+Enemy isDead after lethal damage: true
+Goblin attackActive before try: true
+Goblin tryDealAttack first: true
+Goblin tryDealAttack second: false
+StateController restart first: true
+StateController restart second: false
+MethodTester: tests complete."
+
+
+Now , the charichters are changing their look (frames)  quick and continues, which is not what is supposed to be. They supposed to have one animation for wallking, one for attacking, one for standing, one for kicking for the player for example, and so on. These can be decidede from the raws from the iamges am sharing now, where for player for example last raw is for running animation, and so on. 
+
+Also i want to make W for jumbing as well, and add animation that is the second in the first raw, which is going down, for S . So we have two jumbing the space and W. Read, understand, analyse and best align each animations with its own methodes and functions and so for all the assets . Think deep and long and correct, wihtout breaking any methodes or functions or anything else where everything else stays the same as it is and only changing in GameView what needed and others if any needed. 
 
 
 
+
+
+
+Results : 
 
 I am partway through building [game] in Java with Swing using MVC.
 
