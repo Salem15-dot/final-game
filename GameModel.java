@@ -29,7 +29,7 @@ public class GameModel {
     public static final int WORLD_WIDTH = 1280;
     public static final int WORLD_HEIGHT = 720;
     public static final int GROUND_Y = 550; // Fixed ground baseline
-    public static final int GROUND_OFFSET = 20; // visual tweak: move sprites down
+    public static final int CHARACTER_GROUND_Y = 580; // sprite feet baseline used by physics and drawing
     
     private GameState gameState;
     private int currentLevel;
@@ -186,6 +186,9 @@ public class GameModel {
         private double velocityY;
         private boolean onGround;
         private long attackFrameWindow; // Time active attack hitbox is active (ms)
+        private long attackCooldownRemaining;
+        private boolean attackDelivered;
+        private long attackWindowDefault;
         private long respawnTimer;
         private boolean moveInputThisFrame;
         private boolean runHeld;
@@ -193,12 +196,15 @@ public class GameModel {
         private int currentAttackDamage;
         
         public Player() {
-            super(100, GROUND_Y - 100 + GROUND_OFFSET, 92, 100);
+            super(100, CHARACTER_GROUND_Y - 100, 92, 100);
             this.state = PlayerState.IDLE;
             this.hp = maxHp;
             this.velocityY = 0;
             this.onGround = true;
             this.attackFrameWindow = 0;
+            this.attackCooldownRemaining = 0;
+            this.attackDelivered = false;
+            this.attackWindowDefault = 220;
             this.respawnTimer = 0;
             this.moveInputThisFrame = false;
             this.runHeld = false;
@@ -218,10 +224,18 @@ public class GameModel {
                 return;
             }
 
+            if (attackCooldownRemaining > 0) {
+                attackCooldownRemaining -= deltaMs;
+                if (attackCooldownRemaining < 0) {
+                    attackCooldownRemaining = 0;
+                }
+            }
+
             if (attackFrameWindow > 0) {
                 attackFrameWindow -= deltaMs;
                 if (attackFrameWindow < 0) {
                     attackFrameWindow = 0;
+                    attackDelivered = false;
                 }
             }
 
@@ -246,8 +260,8 @@ public class GameModel {
                 x = WORLD_WIDTH - width;
             }
 
-            if (y + height >= GROUND_Y) {
-                y = GROUND_Y - height + GROUND_OFFSET;
+            if (y + height >= CHARACTER_GROUND_Y) {
+                y = CHARACTER_GROUND_Y - height;
                 velocityY = 0;
                 onGround = true;
                 if (state == PlayerState.JUMP) {
@@ -309,22 +323,32 @@ public class GameModel {
             if (state == PlayerState.DEAD || state == PlayerState.RESPAWNING) {
                 return;
             }
+            if (attackCooldownRemaining > 0) {
+                return;
+            }
             state = PlayerState.PUNCH;
-            attackFrameWindow = 120;
+            attackFrameWindow = attackWindowDefault;
             actionStateTimer = 220;
             currentAttackDamage = 10;
             velocityX = 0;
+            attackCooldownRemaining = 2000;
+            attackDelivered = false;
         }
 
         public void kick() {
             if (state == PlayerState.DEAD || state == PlayerState.RESPAWNING) {
                 return;
             }
+            if (attackCooldownRemaining > 0) {
+                return;
+            }
             state = PlayerState.KICK;
-            attackFrameWindow = 140;
+            attackFrameWindow = attackWindowDefault;
             actionStateTimer = 260;
             currentAttackDamage = 15;
             velocityX = 0;
+            attackCooldownRemaining = 2000;
+            attackDelivered = false;
         }
 
         public void takeDamage(int damage) {
@@ -350,15 +374,26 @@ public class GameModel {
         public void respawn() {
             hp = maxHp;
             x = 100;
-            y = GROUND_Y - height + GROUND_OFFSET;
+            y = CHARACTER_GROUND_Y - height;
             velocityX = 0;
             velocityY = 0;
             onGround = true;
             state = PlayerState.IDLE;
             respawnTimer = 0;
+            attackCooldownRemaining = 0;
+            attackFrameWindow = 0;
+            attackDelivered = false;
         }
         
         public long getRespawnRemaining() { return respawnTimer; }
+        
+        public boolean tryDealAttack() {
+            if (attackFrameWindow > 0 && !attackDelivered) {
+                attackDelivered = true;
+                return true;
+            }
+            return false;
+        }
         
         public PlayerState getState() { return state; }
         public int getHp() { return hp; }
@@ -443,7 +478,7 @@ public class GameModel {
                 walkToward(player.getX(), deltaTime);
             }
 
-            y = GROUND_Y - height + GROUND_OFFSET;
+            y = CHARACTER_GROUND_Y - height;
         }
         
         public void walkToward(double targetX, double deltaTime) {
@@ -506,7 +541,7 @@ public class GameModel {
             super(x, y, 30, 5, 100.0);
             this.width = 72;
             this.height = 72;
-            this.y = GROUND_Y - height + GROUND_OFFSET;
+            this.y = CHARACTER_GROUND_Y - height;
             this.attackCooldown = 2000; // goblins are slow
             this.attackActiveWindowDefault = 220;
         }
@@ -517,7 +552,7 @@ public class GameModel {
             super(x, y, 40, 10, 170.0);
             this.width = 104;
             this.height = 80;
-            this.y = GROUND_Y - height + GROUND_OFFSET;
+            this.y = CHARACTER_GROUND_Y - height;
             this.attackCooldown = 1500; // wolves faster
             this.attackActiveWindowDefault = 160;
         }
@@ -528,7 +563,7 @@ public class GameModel {
             super(x, y, 60, 15, 130.0);
             this.width = 86;
             this.height = 96;
-            this.y = GROUND_Y - height + GROUND_OFFSET;
+            this.y = CHARACTER_GROUND_Y - height;
             this.attackCooldown = 1800; // rogue medium
             this.attackActiveWindowDefault = 240;
         }

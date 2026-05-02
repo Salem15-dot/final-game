@@ -157,7 +157,10 @@ public class GameController {
         private void tick() {
             long now = System.currentTimeMillis();
             double deltaTime = (now - lastFrameTime) / 1000.0; // Convert to seconds
+            long deltaMs = Math.max(0L, now - lastFrameTime);
             lastFrameTime = now;
+
+            stateController.tick(deltaMs);
             
             // 1. Read input intents
             readInput();
@@ -184,6 +187,21 @@ public class GameController {
          */
         private void readInput() {
             GameModel.Player player = model.getPlayer();
+            boolean pausePressed = keyboardController.wasPausePressed();
+            boolean restartPressed = keyboardController.wasRestartPressed();
+
+            if (pausePressed) {
+                if (model.getGameState() == GameModel.GameState.PLAYING) {
+                    model.pause();
+                } else if (model.getGameState() == GameModel.GameState.PAUSED) {
+                    model.resume();
+                }
+            }
+
+            if (restartPressed) {
+                stateController.tryRestart();
+            }
+
             if (player == null || model.getGameState() != GameModel.GameState.PLAYING) {
                 return;
             }
@@ -208,23 +226,6 @@ public class GameController {
                 player.kick();
             }
             
-            // Pause
-            if (keyboardController.wasPausePressed()) {
-                if (model.getGameState() == GameModel.GameState.PLAYING) {
-                    model.pause();
-                } else if (model.getGameState() == GameModel.GameState.PAUSED) {
-                    model.resume();
-                }
-            }
-
-            // Restart
-            if (keyboardController.wasRestartPressed()) {
-                if (model.getGameState() == GameModel.GameState.GAME_OVER) {
-                    stateController.startNewGame();
-                } else {
-                    model.startLevel(model.getCurrentLevel());
-                }
-            }
         }
     }
     
@@ -242,7 +243,9 @@ public class GameController {
             if (player.hasActiveAttack()) {
                 for (GameModel.Enemy enemy : model.getEnemies()) {
                     if (checkBoundingBoxOverlap(player, enemy)) {
-                        enemy.takeDamage(player.getState() == GameModel.PlayerState.PUNCH ? 10 : 15);
+                        if (player.tryDealAttack()) {
+                            enemy.takeDamage(player.getCurrentAttackDamage());
+                        }
                     }
                 }
             }
@@ -275,10 +278,22 @@ public class GameController {
     public static class StateController {
         private GameModel model;
         private GameView view;
+        private long restartCooldownRemainingMs;
+        private static final long RESTART_COOLDOWN_MS = 5000;
         
         public StateController(GameModel model, GameView view) {
             this.model = model;
             this.view = view;
+            this.restartCooldownRemainingMs = 0;
+        }
+
+        public void tick(long deltaMs) {
+            if (restartCooldownRemainingMs > 0) {
+                restartCooldownRemainingMs -= deltaMs;
+                if (restartCooldownRemainingMs < 0) {
+                    restartCooldownRemainingMs = 0;
+                }
+            }
         }
         
         /**
@@ -296,6 +311,20 @@ public class GameController {
         public void startNewGame() {
             model.setGameState(GameModel.GameState.PLAYING);
             model.startLevel(1);
+        }
+
+        public boolean tryRestart() {
+            if (restartCooldownRemainingMs > 0) {
+                return false;
+            }
+
+            restartCooldownRemainingMs = RESTART_COOLDOWN_MS;
+            if (model.getGameState() == GameModel.GameState.GAME_OVER || model.getGameState() == GameModel.GameState.VICTORY) {
+                startNewGame();
+            } else {
+                model.startLevel(model.getCurrentLevel());
+            }
+            return true;
         }
         
         /**

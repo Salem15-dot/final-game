@@ -167,7 +167,103 @@ MethodTester: tests complete.
 "
 
 
-Also, other edits were done where the position is now better looking and more like real walking,
+Also, other edits were done where the position is now better looking and more like real walking, still needs another 10 y down. The biggest errors that are happining now are : 
+1- )Player state after jump: IDLE onGround=true which when i also test in the gameplay, is same thing, player is not jumping anymore AI screw this thing , i depugged the GameController file i found this :
+"        public void jump() {
+            if (!onGround || state == PlayerState.DEAD || state == PlayerState.RESPAWNING) {
+                return;
+            }
+            velocityY = JUMP_VELOCITY;
+            onGround = false;
+            state = PlayerState.JUMP;
+        }
+
+" 
+
+I can't see why it is not working but the AI did this in the GameModel : 
+"        public void respawn() {
+            hp = maxHp;
+            x = 100;
+            y = GROUND_Y - height + GROUND_OFFSET;
+            velocityX = 0;
+            velocityY = 0;
+            onGround = true;
+            state = PlayerState.IDLE;
+            respawnTimer = 0;
+        }
+        
+        public long getRespawnRemaining() { return respawnTimer; }
+" which seems like the error reason, where GROUND Y case that !onGround or state == PlayerState.RESPAWNING be true so it return nothing and there is no jumb, i don't understand why the AI decidede to use groundOFFSET instead of just changing the coordinates of the Charcheters themselves which is much easier and could casue no change in other things, lets fix that first. 
+
+
+2-) When pasuing, P works to puse, but can't unpasue ! so the screen stays lagged at pasued and never be able to undo this, this is easy fix do it.
+
+3-) R directly researt everything, which is find and correct but needs to be more like you can't restart more than once every 5 seconds.
+
+4-) Plyaer is doing same error enemies where doing earlier, he attacks fast and all at once, he can damage and kill all of enemies just with one press, which is not how it supposed to be, read README and fix it accordengly where it attacks onc every 2 sec and per-attack one-hit like enemies
+
+
+Prompt 6 : results : AI decided to actullay do the other changes in addition to the method tester, which i don't mind if it did it correctly. Method tester was made and it does test the methodes and return :
+
+"
+java\jdt_ws\final-game_2abff53f\bin MethodTester "
+MethodTester: starting tests...
+Initial player HP: 100
+Initial player lives: 3
+Player moved right: startX=100.0 after=104.16 moved=4.159999999999997
+Player state after jump: IDLE onGround=true
+Player state after punch: PUNCH
+Spawner created enemy: Goblin
+Enemy HP: 30
+Enemy isDead after lethal damage: true
+Goblin attackActive before try: true
+Goblin tryDealAttack first: true
+Goblin tryDealAttack second: false
+MethodTester: tests complete.
+
+"
+
+
+Also, other edits were done where the position is now better looking and more like real walking, still needs another 10 y down. The biggest errors that are happining now are : 
+1- )Player state after jump: IDLE onGround=true which when i also test in the gameplay, is same thing, player is not jumping anymore AI screw this thing , i depugged the GameController file i found this :
+"        public void jump() {
+            if (!onGround || state == PlayerState.DEAD || state == PlayerState.RESPAWNING) {
+                return;
+            }
+            velocityY = JUMP_VELOCITY;
+            onGround = false;
+            state = PlayerState.JUMP;
+        }
+
+" 
+
+I can't see why it is not working but the AI did this in the GameModel : 
+"        public void respawn() {
+            hp = maxHp;
+            x = 100;
+            y = GROUND_Y - height + GROUND_OFFSET;
+            velocityX = 0;
+            velocityY = 0;
+            onGround = true;
+            state = PlayerState.IDLE;
+            respawnTimer = 0;
+        }
+        
+        public long getRespawnRemaining() { return respawnTimer; }
+" which seems like the error reason, where GROUND Y case that !onGround or state == PlayerState.RESPAWNING be true so it return nothing and there is no jumb, i don't understand why the AI decidede to use groundOFFSET instead of just changing the coordinates of the Charcheters themselves which is much easier and could casue no change in other things, lets fix that first. 
+
+
+2-) When pasuing, P works to puse, but can't unpasue ! so the screen stays lagged at pasued and never be able to undo this, this is easy fix do it.
+
+3-) R directly researt everything, which is find and correct but needs to be more like you can't restart more than once every 5 seconds.
+
+4-) Plyaer is doing same error enemies where doing earlier, he attacks fast and all at once, he can damage and kill all of enemies just with one press, which is not how it supposed to be, read README and fix it accordengly where it attacks onc every 2 sec and per-attack one-hit like enemies
+ 
+
+
+
+
+ Results :"I found the root causes: jump is snapping because the ground check and drawn Y are mismatched, pause input is blocked while paused, restart needs a cooldown gate, and the player still lacks a one-hit attack latch. I’m fixing those together now so the state/input rules stay consistent."  
 
 
 
