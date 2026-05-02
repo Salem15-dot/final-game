@@ -37,7 +37,6 @@ public class GameModel {
     private Player player;
     private List<Enemy> enemies;
     private Spawner spawner;
-    private final Random random;
     
     /**
      * Initialize game model with defaults.
@@ -48,7 +47,6 @@ public class GameModel {
         this.levelTimeRemaining = LEVEL_DURATION_MS;
         this.player = new Player();
         this.enemies = new ArrayList<>();
-        this.random = new Random();
         this.spawner = new Spawner(currentLevel);
     }
     

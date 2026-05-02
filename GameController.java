@@ -277,13 +277,11 @@ public class GameController {
     // ========== STATE CONTROLLER ==========
     public static class StateController {
         private GameModel model;
-        private GameView view;
         private long restartCooldownRemainingMs;
         private static final long RESTART_COOLDOWN_MS = 5000;
         
         public StateController(GameModel model, GameView view) {
             this.model = model;
-            this.view = view;
             this.restartCooldownRemainingMs = 0;
         }
 

@@ -263,7 +263,17 @@ I can't see why it is not working but the AI did this in the GameModel :
 
 
 
- Results :"I found the root causes: jump is snapping because the ground check and drawn Y are mismatched, pause input is blocked while paused, restart needs a cooldown gate, and the player still lacks a one-hit attack latch. I’m fixing those together now so the state/input rules stay consistent."  
+ Results 1 :"I found the root causes: jump is snapping because the ground check and drawn Y are mismatched, pause input is blocked while paused, restart needs a cooldown gate, and the player still lacks a one-hit attack latch. I’m fixing those together now so the state/input rules stay consistent."   Well, i can't test it because now there is this error :"c:\Users\ERC\OneDrive - Minnesota State\Desktop\final-game>
+c:\Users\ERC\OneDrive - Minnesota State\Desktop\final-game> c: && cd "c:\Users\ERC\OneDrive - Minnesota State\Desktop\final-game" && cmd /C ""C:\Program Files\Eclipse Adoptium\jdk-25.0.2.10-hotspot\bin\java.exe" -XX:+ShowCodeDetailsInExceptionMessages -cp C:\Users\ERC\AppData\Roaming\Code\User\workspaceStorage\2c676952b791cf3909524e2486911edb\redhat.java\jdt_ws\final-game_2abff53f\bin GameController "
+Error: Could not find or load main class GameController
+Caused by: java.lang.ClassNotFoundException: GameController
+
+c:\Users\ERC\OneDrive - Minnesota State\Desktop\final-game>"  It is because of the changes you have done in the gameControler i belivie, somewhere that make a compiling error so search and find and fix
+
+
+Results 2 : 
+
+
 
 
 

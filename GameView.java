@@ -115,20 +115,15 @@ public class GameView {
 
             // Screen overlays: pause, respawn, game over, victory
             GameModel.Player player = model.getPlayer();
-            boolean drewOverlay = false;
 
             if (model.getGameState() == GameModel.GameState.PAUSED) {
                 drawDarkOverlay(g2d, "PAUSED - Press P or Esc to resume");
-                drewOverlay = true;
             } else if (model.getGameState() == GameModel.GameState.GAME_OVER) {
                 drawDarkOverlay(g2d, "GAME OVER - Press R to restart");
-                drewOverlay = true;
             } else if (model.getGameState() == GameModel.GameState.VICTORY) {
                 drawDarkOverlay(g2d, "VICTORY!");
-                drewOverlay = true;
             } else if (player != null && player.getState() == GameModel.PlayerState.DEAD && player.getRespawnRemaining() > 0) {
                 drawDarkOverlay(g2d, "Respawning...");
-                drewOverlay = true;
             }
         }
 
