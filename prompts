@@ -120,8 +120,54 @@ If you want, next step I can do only one focused pass on animation row/frame tun
 
 "
 
-I
+Prompt 4: I can see the correct assets in their places (goblin, player, background, others didn't have the chance to get to their level yet so i don't know but assume they are there) And yes they exsist but as you noted needs to start working on their animations not, and some detailes regarding the health and attack and position : 
 
+1-) When the enemie touch the player, his health (plyer) goes down very quick, which means maybe the method is being (attack as long as the condition is true) which means the goblin attacks soooo fast and not supposed to . Make a delay in the enemies attacks where they can attack once every 2 seconds 
+2-) The y position of the player and enemies is flying over the ground of the background, go down like 20 y to see if this will look better
+
+3-) Now as basic things are there, we can start working on correct complete details that was not yet made like gameover screen when the player lose and P to puse and R to researt and the screen goes a bit darker while the player is dead and waiting to respone, there are more detailes coming but we starting with these to give you handable jobs at onc 
+
+
+Results : The enemies now attack every 2 seconds, the charechtures all are 20 y down 9needs 10 more) , and collision works better than before where it was attack is active while true
+
+
+we need to do the following next : "Add an "attack-done" flag so each attack only damages once per window (if you prefer explicit per-attack one-hit behavior rather than possible multiple-frame hits inside the window). I currently rely on a small window — collisions during that window can cause multiple hits if overlap persists across frames.
+Tune the attack window and cooldown per enemy type (e.g., wolves attack faster than goblins).
+Implement Pause (P/Esc), Restart (R), and Game Over / Victory overlays as you outlined.
+"
+
+
+this should be after a tester made
+
+
+
+
+
+Prompt 5-) As we start doing methodes and functions and things needs to be tested, make a MethodTester that tests all the methodes we have in all the files making sure they all work so that we can run it anytime in any step of the building and make sure we didn't lose track or miss up anything was already there. This should be corrected ways , multiple as well if possible, to test methodes and make sure they work and retun values or do things they are supposed to ,and so on. 
+
+
+results : AI decided to actullay do the other changes in addition to the method tester, which i don't mind if it did it correctly. Method tester was made and it does test the methodes and return :
+
+"
+java\jdt_ws\final-game_2abff53f\bin MethodTester "
+MethodTester: starting tests...
+Initial player HP: 100
+Initial player lives: 3
+Player moved right: startX=100.0 after=104.16 moved=4.159999999999997
+Player state after jump: IDLE onGround=true
+Player state after punch: PUNCH
+Spawner created enemy: Goblin
+Enemy HP: 30
+Enemy isDead after lethal damage: true
+Goblin attackActive before try: true
+Goblin tryDealAttack first: true
+Goblin tryDealAttack second: false
+MethodTester: tests complete.
+
+"
+
+
+Also, other edits were done where the position is now better looking and more like real walking,
 
 
 

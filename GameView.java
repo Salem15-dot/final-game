@@ -112,6 +112,38 @@ public class GameView {
             
             // Draw HUD
             hudView.draw(g2d, model);
+
+            // Screen overlays: pause, respawn, game over, victory
+            GameModel.Player player = model.getPlayer();
+            boolean drewOverlay = false;
+
+            if (model.getGameState() == GameModel.GameState.PAUSED) {
+                drawDarkOverlay(g2d, "PAUSED - Press P or Esc to resume");
+                drewOverlay = true;
+            } else if (model.getGameState() == GameModel.GameState.GAME_OVER) {
+                drawDarkOverlay(g2d, "GAME OVER - Press R to restart");
+                drewOverlay = true;
+            } else if (model.getGameState() == GameModel.GameState.VICTORY) {
+                drawDarkOverlay(g2d, "VICTORY!");
+                drewOverlay = true;
+            } else if (player != null && player.getState() == GameModel.PlayerState.DEAD && player.getRespawnRemaining() > 0) {
+                drawDarkOverlay(g2d, "Respawning...");
+                drewOverlay = true;
+            }
+        }
+
+        private void drawDarkOverlay(Graphics2D g2d, String message) {
+            Composite old = g2d.getComposite();
+            g2d.setColor(new Color(0, 0, 0, 140));
+            g2d.fillRect(0, 0, getWidth(), getHeight());
+            g2d.setComposite(old);
+
+            g2d.setColor(Color.WHITE);
+            g2d.setFont(new Font("Arial", Font.BOLD, 36));
+            FontMetrics fm = g2d.getFontMetrics();
+            int x = (getWidth() - fm.stringWidth(message)) / 2;
+            int y = (getHeight() / 2) - (fm.getHeight() / 2) + fm.getAscent();
+            g2d.drawString(message, x, y);
         }
     }
     

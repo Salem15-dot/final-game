@@ -87,6 +87,8 @@ public class GameController {
         public boolean wasPausePressed() {
             return consumeKey(KeyEvent.VK_ESCAPE) || consumeKey(KeyEvent.VK_P);
         }
+
+        public boolean wasRestartPressed() { return consumeKey(KeyEvent.VK_R); }
         
         /**
          * Consume a key press (edge-triggered).
@@ -214,6 +216,15 @@ public class GameController {
                     model.resume();
                 }
             }
+
+            // Restart
+            if (keyboardController.wasRestartPressed()) {
+                if (model.getGameState() == GameModel.GameState.GAME_OVER) {
+                    stateController.startNewGame();
+                } else {
+                    model.startLevel(model.getCurrentLevel());
+                }
+            }
         }
     }
     
@@ -238,9 +249,12 @@ public class GameController {
             
             // Check enemy attack hitbox vs player
             for (GameModel.Enemy enemy : model.getEnemies()) {
-                if (enemy.getState() == GameModel.EnemyState.ATTACK) {
-                    if (checkBoundingBoxOverlap(enemy, player)) {
-                        player.takeDamage(enemy.damage);
+                if (enemy instanceof GameModel.Enemy) {
+                    GameModel.Enemy e = (GameModel.Enemy) enemy;
+                    if (e.isAttackActive() && checkBoundingBoxOverlap(enemy, player)) {
+                        if (e.tryDealAttack()) {
+                            player.takeDamage(e.damage);
+                        }
                     }
                 }
             }

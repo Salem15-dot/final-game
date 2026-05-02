@@ -29,6 +29,7 @@ public class GameModel {
     public static final int WORLD_WIDTH = 1280;
     public static final int WORLD_HEIGHT = 720;
     public static final int GROUND_Y = 550; // Fixed ground baseline
+    public static final int GROUND_OFFSET = 20; // visual tweak: move sprites down
     
     private GameState gameState;
     private int currentLevel;
@@ -192,7 +193,7 @@ public class GameModel {
         private int currentAttackDamage;
         
         public Player() {
-            super(100, GROUND_Y - 100, 92, 100);
+            super(100, GROUND_Y - 100 + GROUND_OFFSET, 92, 100);
             this.state = PlayerState.IDLE;
             this.hp = maxHp;
             this.velocityY = 0;
@@ -246,7 +247,7 @@ public class GameModel {
             }
 
             if (y + height >= GROUND_Y) {
-                y = GROUND_Y - height;
+                y = GROUND_Y - height + GROUND_OFFSET;
                 velocityY = 0;
                 onGround = true;
                 if (state == PlayerState.JUMP) {
@@ -349,13 +350,15 @@ public class GameModel {
         public void respawn() {
             hp = maxHp;
             x = 100;
-            y = GROUND_Y - height;
+            y = GROUND_Y - height + GROUND_OFFSET;
             velocityX = 0;
             velocityY = 0;
             onGround = true;
             state = PlayerState.IDLE;
             respawnTimer = 0;
         }
+        
+        public long getRespawnRemaining() { return respawnTimer; }
         
         public PlayerState getState() { return state; }
         public int getHp() { return hp; }
@@ -376,6 +379,9 @@ public class GameModel {
         protected double attackRange;
         protected long attackCooldown;
         protected long attackCooldownRemaining;
+        protected long attackActiveWindow;
+        protected boolean attackDelivered;
+        protected long attackActiveWindowDefault;
         protected int facing = 1; // 1 = right, -1 = left
         
         public Enemy(double x, double y, int maxHp, int damage, double speed) {
@@ -386,8 +392,10 @@ public class GameModel {
             this.damage = damage;
             this.speed = speed;
             this.attackRange = 56;
-            this.attackCooldown = 1000; // 1 second between attacks
+            this.attackCooldown = 2000; // 2 seconds between attacks
             this.attackCooldownRemaining = 0;
+            this.attackActiveWindow = 0;
+            this.attackActiveWindowDefault = 220;
         }
         
         @Override
@@ -409,6 +417,15 @@ public class GameModel {
                 }
             }
 
+            if (attackActiveWindow > 0) {
+                attackActiveWindow -= deltaMs;
+                if (attackActiveWindow <= 0) {
+                    attackActiveWindow = 0;
+                    // reset delivered marker for the next attack
+                    attackDelivered = false;
+                }
+            }
+
             double distanceX = player.getX() - x;
             facing = distanceX >= 0 ? 1 : -1;
 
@@ -416,15 +433,17 @@ public class GameModel {
                 state = EnemyState.ATTACK;
                 velocityX = 0;
                 if (attackCooldownRemaining == 0) {
-                    player.takeDamage(damage);
+                    // begin an attack window during which collision controller can apply damage exactly once
+                    attackActiveWindow = this.attackActiveWindowDefault > 0 ? this.attackActiveWindowDefault : 220;
                     attackCooldownRemaining = attackCooldown;
+                    attackDelivered = false;
                 }
             } else {
                 state = EnemyState.WALK;
                 walkToward(player.getX(), deltaTime);
             }
 
-            y = GROUND_Y - height;
+            y = GROUND_Y - height + GROUND_OFFSET;
         }
         
         public void walkToward(double targetX, double deltaTime) {
@@ -458,6 +477,22 @@ public class GameModel {
                 state = EnemyState.HURT;
             }
         }
+
+        /**
+         * Attempt to apply a single attack hit during the current active window.
+         * Returns true only the first time it is called while the window is active.
+         */
+        public boolean tryDealAttack() {
+            if (attackActiveWindow > 0 && !attackDelivered) {
+                attackDelivered = true;
+                return true;
+            }
+            return false;
+        }
+
+        public boolean isAttackActive() {
+            return attackActiveWindow > 0;
+        }
         
         public EnemyState getState() { return state; }
         public int getHp() { return hp; }
@@ -471,7 +506,9 @@ public class GameModel {
             super(x, y, 30, 5, 100.0);
             this.width = 72;
             this.height = 72;
-            this.y = GROUND_Y - height;
+            this.y = GROUND_Y - height + GROUND_OFFSET;
+            this.attackCooldown = 2000; // goblins are slow
+            this.attackActiveWindowDefault = 220;
         }
     }
     
@@ -480,7 +517,9 @@ public class GameModel {
             super(x, y, 40, 10, 170.0);
             this.width = 104;
             this.height = 80;
-            this.y = GROUND_Y - height;
+            this.y = GROUND_Y - height + GROUND_OFFSET;
+            this.attackCooldown = 1500; // wolves faster
+            this.attackActiveWindowDefault = 160;
         }
     }
     
@@ -489,7 +528,9 @@ public class GameModel {
             super(x, y, 60, 15, 130.0);
             this.width = 86;
             this.height = 96;
-            this.y = GROUND_Y - height;
+            this.y = GROUND_Y - height + GROUND_OFFSET;
+            this.attackCooldown = 1800; // rogue medium
+            this.attackActiveWindowDefault = 240;
         }
     }
     
