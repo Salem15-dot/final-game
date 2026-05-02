@@ -72,8 +72,6 @@ public class GameView {
         
         // Animation system fields
         private BufferedImage playerSheet, goblinSheet, rogueSheet, wolfSheet;
-        private int animTick = 0;
-        private static final int FRAME_DELAY = 8; // advance 1 frame every 8 game ticks ≈ 7.5 fps
         
         // AnimClip instances for each animation
         private AnimClip playerIdle, playerCrouch, playerWalk, playerRun,
@@ -139,9 +137,6 @@ public class GameView {
             // Draw background
             backgroundView.draw(g2d, getWidth(), getHeight());
             
-            // Advance animation tick
-            animTick++;
-            
             GameModel.Player player = model.getPlayer();
             
             // Draw enemies (behind the player visually)
@@ -152,8 +147,7 @@ public class GameView {
                 AnimClip clip = getEnemyClip(enemy, facingLeft);
                 if (clip == null) continue;
                 
-                int frameIndex = (animTick / FRAME_DELAY) % clip.frameCount;
-                BufferedImage sprite = clip.getFrame(frameIndex);
+                BufferedImage sprite = clip.getFrame(0);
                 
                 // Scale: goblin/rogue are small; scale up so they match hero
                 int scale = (enemy.getClass().getSimpleName().equals("Goblin")) ? 2
@@ -170,8 +164,7 @@ public class GameView {
             if (player != null) {
                 AnimClip pClip = getPlayerClip(player.getState(), model.isCrouching());
                 if (pClip != null) {
-                    int pFrame = (animTick / FRAME_DELAY) % pClip.frameCount;
-                    BufferedImage pSprite = pClip.getFrame(pFrame);
+                    BufferedImage pSprite = pClip.getFrame(0);
                     boolean playerFacesLeft = (player.getFacing() < 0);
                     drawSprite(g2d, pSprite, (int)player.getX(), (int)player.getY(), 3, playerFacesLeft);
                 }
@@ -226,32 +219,32 @@ public class GameView {
             int pw = 46, ph = 40;
             playerIdle = new AnimClip(playerSheet, 0, 0, 1, pw, ph);
             playerCrouch = new AnimClip(playerSheet, 0, 1, 1, pw, ph);
-            playerWalk = new AnimClip(playerSheet, 1, 0, 8, pw, ph);
-            playerRun = new AnimClip(playerSheet, 4, 0, 8, pw, ph);
-            playerJump = new AnimClip(playerSheet, 2, 0, 3, pw, ph);
+            playerWalk = new AnimClip(playerSheet, 1, 0, 1, pw, ph);
+            playerRun = new AnimClip(playerSheet, 4, 0, 1, pw, ph);
+            playerJump = new AnimClip(playerSheet, 2, 0, 1, pw, ph);
             playerFall = new AnimClip(playerSheet, 2, 2, 1, pw, ph);
-            playerPunch = new AnimClip(playerSheet, 3, 0, 6, pw, ph);
-            playerKick = new AnimClip(playerSheet, 2, 3, 3, pw, ph);
+            playerPunch = new AnimClip(playerSheet, 3, 0, 1, pw, ph);
+            playerKick = new AnimClip(playerSheet, 2, 3, 1, pw, ph);
             playerHurt = new AnimClip(playerSheet, 0, 0, 1, pw, ph);
 
             // Goblin (64 × 64 px per frame)
             int gw = 64, gh = 64;
-            goblinWalkL = new AnimClip(goblinSheet, 1, 0, 9, gw, gh);
-            goblinWalkR = new AnimClip(goblinSheet, 3, 0, 9, gw, gh);
-            goblinAttackL = new AnimClip(goblinSheet, 4, 0, 5, gw, gh);
-            goblinAttackR = new AnimClip(goblinSheet, 4, 0, 5, gw, gh);
+            goblinWalkL = new AnimClip(goblinSheet, 1, 0, 1, gw, gh);
+            goblinWalkR = new AnimClip(goblinSheet, 3, 0, 1, gw, gh);
+            goblinAttackL = new AnimClip(goblinSheet, 4, 0, 1, gw, gh);
+            goblinAttackR = new AnimClip(goblinSheet, 4, 0, 1, gw, gh);
 
             // Rogue (40 × 40 px per frame)
             int rw = 40, rh = 40;
-            rogueWalkL = new AnimClip(rogueSheet, 1, 0, 8, rw, rh);
-            rogueWalkR = new AnimClip(rogueSheet, 3, 0, 8, rw, rh);
-            rogueAttackL = new AnimClip(rogueSheet, 5, 0, 8, rw, rh);
-            rogueAttackR = new AnimClip(rogueSheet, 7, 0, 8, rw, rh);
+            rogueWalkL = new AnimClip(rogueSheet, 1, 0, 1, rw, rh);
+            rogueWalkR = new AnimClip(rogueSheet, 3, 0, 1, rw, rh);
+            rogueAttackL = new AnimClip(rogueSheet, 5, 0, 1, rw, rh);
+            rogueAttackR = new AnimClip(rogueSheet, 7, 0, 1, rw, rh);
 
             // Wolf (64 × 64 px per frame, right section offset = col 3)
             int ww = 64, wh = 64;
-            wolfWalkL = new AnimClip(wolfSheet, 1, 3, 7, ww, wh);
-            wolfAttackL = new AnimClip(wolfSheet, 3, 3, 6, ww, wh);
+            wolfWalkL = new AnimClip(wolfSheet, 1, 3, 1, ww, wh);
+            wolfAttackL = new AnimClip(wolfSheet, 3, 3, 1, ww, wh);
         }
 
         /**
