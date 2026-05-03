@@ -48,13 +48,15 @@ public class GameView {
         public GameWindow(GameModel model) {
             setTitle("Brawler Arena");
             setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-            setResizable(false);
+            setResizable(true);
             setLocationRelativeTo(null);
             
             gamePanel = new GamePanel(model);
             add(gamePanel);
             
             pack();
+            // Start the window maximized to fill the screen
+            setExtendedState(getExtendedState() | JFrame.MAXIMIZED_BOTH);
             setVisible(true);
         }
         
@@ -192,7 +194,7 @@ public class GameView {
                 return;
             }
             if (model.getGameState() == GameModel.GameState.PAUSED) {
-                drawDarkOverlay(g2d, "PAUSED - Press P or Esc to resume");
+                drawPauseOverlay(g2d);
             } else if (model.getGameState() == GameModel.GameState.GAME_OVER) {
                 drawGameOverOverlay(g2d);
             } else if (model.getGameState() == GameModel.GameState.VICTORY) {
@@ -276,6 +278,31 @@ public class GameView {
 
             // Main message
             String msg = "GAME OVER - Press R to restart";
+            g2d.setColor(Color.WHITE);
+            g2d.setFont(new Font("Arial", Font.BOLD, 36));
+            FontMetrics fm = g2d.getFontMetrics();
+            int x = (getWidth() - fm.stringWidth(msg)) / 2;
+            int y = (getHeight() / 2) - (fm.getHeight() / 2) + fm.getAscent();
+            g2d.drawString(msg, x, y);
+
+            // High score line below
+            String hs = "High Score: " + model.getHighScore();
+            g2d.setFont(new Font("Arial", Font.PLAIN, 18));
+            FontMetrics hfm = g2d.getFontMetrics();
+            int hx = (getWidth() - hfm.stringWidth(hs)) / 2;
+            int hy = y + 40;
+            g2d.drawString(hs, hx, hy);
+        }
+
+        private void drawPauseOverlay(Graphics2D g2d) {
+            // Semi-opaque dark background
+            Composite old = g2d.getComposite();
+            g2d.setColor(new Color(0,0,0,180));
+            g2d.fillRect(0,0,getWidth(), getHeight());
+            g2d.setComposite(old);
+
+            // Main pause message
+            String msg = "PAUSED - Press P or Esc to resume";
             g2d.setColor(Color.WHITE);
             g2d.setFont(new Font("Arial", Font.BOLD, 36));
             FontMetrics fm = g2d.getFontMetrics();

@@ -540,18 +540,8 @@ prompt 20: Sorry forgot to mention, add it (the highest score) also to the pause
  
 
 
-I am partway through building [game] in Java with Swing using MVC.
-
-Here is my spec:
-
-[paste spec]
-
-Here are my current files:
-
-[paste FrogModel.java]
-[paste FrogView.java]
-[paste FrogController.java]
-
-Right now I am stuck on [specific problem]. Help me with that and only that.
+Results : Done very well 
 
 
+Prompt : everythingis working perfectly thank you so much, just final edits and enhancments :
+I hate the current music and voices , so i want to get red of all of them (except for the money collecting, power-up, level up, and anything that is not covered by the voices and sounds i just added in the assets folder), you can find files each with its name that discripes where and what it should be for, make sure the SoundMnager.java be fixed and enhanced accoredngly without touching anything else anywhere else unless nessacery , don't change anythinge else. Make sure everything has his owns spirits and sounds that gives the game real feelings and fun!
