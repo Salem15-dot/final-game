@@ -136,6 +136,8 @@ public class GameView {
             
             // Draw background
             backgroundView.draw(g2d, getWidth(), getHeight());
+
+            drawPowerUps(g2d);
             
             GameModel.Player player = model.getPlayer();
             
@@ -161,6 +163,7 @@ public class GameView {
                 boolean shouldFlip = facingLeft && enemyType.equals("Wolf");
 
                 drawSprite(g2d, sprite, (int) enemy.getX(), drawY, scale, shouldFlip);
+                drawEnemyHealthBar(g2d, enemy, (int) enemy.getX(), drawY, sprite == null ? (int) (enemy.getWidth() * scale) : sprite.getWidth() * scale);
             }
 
             // Draw player
@@ -175,6 +178,10 @@ public class GameView {
             
             // Draw HUD
             hudView.draw(g2d, model);
+            drawEffectTimers(g2d);
+            drawFloatingTexts(g2d);
+            drawMoneyItems(g2d);
+            drawAbilityPanel(g2d);
 
             // Screen overlays: pause, respawn, game over, victory
             if (model.getGameState() == GameModel.GameState.PAUSED) {
@@ -200,6 +207,131 @@ public class GameView {
             int x = (getWidth() - fm.stringWidth(message)) / 2;
             int y = (getHeight() / 2) - (fm.getHeight() / 2) + fm.getAscent();
             g2d.drawString(message, x, y);
+        }
+
+        private void drawPowerUps(Graphics2D g2d) {
+            if (model == null) {
+                return;
+            }
+            g2d.setFont(new Font("Arial", Font.BOLD, 14));
+            for (GameModel.PowerUp powerUp : model.getPowerUps()) {
+                int drawX = (int) Math.round(powerUp.getX());
+                int drawY = (int) Math.round(powerUp.getY());
+                g2d.setColor(powerUp.getColor());
+                g2d.fillRoundRect(drawX, drawY, (int) powerUp.getWidth(), (int) powerUp.getHeight(), 10, 10);
+                g2d.setColor(Color.WHITE);
+                g2d.drawRoundRect(drawX, drawY, (int) powerUp.getWidth(), (int) powerUp.getHeight(), 10, 10);
+                String label = powerUp.getLabel();
+                FontMetrics fm = g2d.getFontMetrics();
+                int textX = drawX + ((int) powerUp.getWidth() - fm.stringWidth(label)) / 2;
+                int textY = drawY + ((int) powerUp.getHeight() + fm.getAscent()) / 2 - 2;
+                g2d.drawString(label, textX, textY);
+            }
+        }
+
+        private void drawEnemyHealthBar(Graphics2D g2d, GameModel.Enemy enemy, int x, int y, int spriteWidth) {
+            int barWidth = Math.max(34, spriteWidth - 6);
+            int barHeight = 7;
+            int barX = x + (spriteWidth - barWidth) / 2;
+            int barY = y - 14;
+            double ratio = enemy.getMaxHp() <= 0 ? 0.0 : Math.max(0.0, Math.min(1.0, enemy.getHp() / (double) enemy.getMaxHp()));
+
+            g2d.setColor(new Color(0, 0, 0, 170));
+            g2d.fillRoundRect(barX, barY, barWidth, barHeight, 8, 8);
+            g2d.setColor(new Color(220, 50, 50));
+            g2d.fillRoundRect(barX, barY, (int) Math.round(barWidth * ratio), barHeight, 8, 8);
+            g2d.setColor(new Color(255, 255, 255, 180));
+            g2d.drawRoundRect(barX, barY, barWidth, barHeight, 8, 8);
+        }
+
+        private void drawFloatingTexts(Graphics2D g2d) {
+            if (model == null) {
+                return;
+            }
+            g2d.setFont(new Font("Arial", Font.BOLD, 18));
+            for (GameModel.FloatingText text : model.getFloatingTexts()) {
+                float alpha = Math.max(0f, Math.min(1f, text.getRemainingMs() / 900f));
+                Composite old = g2d.getComposite();
+                g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, alpha));
+                g2d.setColor(text.getColor());
+                FontMetrics fm = g2d.getFontMetrics();
+                int drawX = (int) Math.round(text.getX()) - fm.stringWidth(text.getText()) / 2;
+                int drawY = (int) Math.round(text.getY());
+                g2d.drawString(text.getText(), drawX, drawY);
+                g2d.setComposite(old);
+            }
+        }
+
+        private void drawEffectTimers(Graphics2D g2d) {
+            if (model == null) {
+                return;
+            }
+            List<String> effects = model.getActiveEffectSummaries();
+            if (effects.isEmpty()) {
+                return;
+            }
+
+            int panelX = 20;
+            int panelY = 110;
+            int panelWidth = 200;
+            int panelHeight = 26 + effects.size() * 20;
+
+            g2d.setColor(new Color(0, 0, 0, 170));
+            g2d.fillRoundRect(panelX, panelY, panelWidth, panelHeight, 16, 16);
+            g2d.setColor(new Color(255, 255, 255, 180));
+            g2d.drawRoundRect(panelX, panelY, panelWidth, panelHeight, 16, 16);
+            g2d.setFont(new Font("Arial", Font.BOLD, 14));
+            g2d.drawString("Active Effects", panelX + 12, panelY + 18);
+
+            int lineY = panelY + 38;
+            for (String effect : effects) {
+                g2d.drawString(effect, panelX + 12, lineY);
+                lineY += 20;
+            }
+        }
+
+        private void drawMoneyItems(Graphics2D g2d) {
+            if (model == null) return;
+            for (GameModel.Money m : model.getMoneyList()) {
+                int cx = (int) Math.round(m.getX());
+                int cy = (int) Math.round(m.getY());
+                int size = Math.max(10, m.getValue() * 8);
+                g2d.setColor(new Color(212, 175, 55)); // gold
+                g2d.fillOval(cx, cy, size, size);
+                g2d.setColor(Color.BLACK);
+                g2d.drawOval(cx, cy, size, size);
+            }
+        }
+
+        private void drawAbilityPanel(Graphics2D g2d) {
+            if (model == null) return;
+            int panelX = getWidth() - 260;
+            int panelY = 20;
+            int panelW = 240;
+            int panelH = 156;
+            g2d.setColor(new Color(0,0,0,160));
+            g2d.fillRoundRect(panelX, panelY, panelW, panelH, 12, 12);
+            g2d.setColor(Color.WHITE);
+            g2d.drawRoundRect(panelX, panelY, panelW, panelH, 12, 12);
+            g2d.setFont(new Font("Arial", Font.BOLD, 14));
+            g2d.drawString("Upgrades (1-4)", panelX + 12, panelY + 22);
+            g2d.setColor(Color.YELLOW);
+            g2d.drawString("Money: $" + model.getPlayerMoney(), panelX + 12, panelY + 40);
+
+            String[] names = {"Atk Speed", "Health", "Damage", "Jump"};
+            GameModel.AbilityType[] types = {GameModel.AbilityType.SPEED, GameModel.AbilityType.HEALTH, GameModel.AbilityType.DAMAGE, GameModel.AbilityType.JUMP};
+            int y = panelY + 62;
+            g2d.setFont(new Font("Arial", Font.PLAIN, 12));
+            for (int i = 0; i < names.length; i++) {
+                String name = names[i];
+                int level = model.getUpgradeLevel(types[i]);
+                int cost = model.getUpgradeCost(types[i]);
+                String line = String.format("%d) %s Lv%d  Cost:$%d", i+1, name, level, cost);
+                g2d.drawString(line, panelX + 12, y);
+                y += 22;
+            }
+            g2d.setFont(new Font("Arial", Font.ITALIC, 11));
+            g2d.drawString("Health heals +10 and max+10", panelX + 12, panelY + panelH - 12);
         }
         
         /**

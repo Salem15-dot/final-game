@@ -90,6 +90,10 @@ public class GameController {
         }
 
         public boolean wasRestartPressed() { return consumeKey(KeyEvent.VK_R); }
+        public boolean wasBuySpeedPressed() { return consumeKey(KeyEvent.VK_1); }
+        public boolean wasBuyHealthPressed() { return consumeKey(KeyEvent.VK_2); }
+        public boolean wasBuyDamagePressed() { return consumeKey(KeyEvent.VK_3); }
+        public boolean wasBuyJumpPressed() { return consumeKey(KeyEvent.VK_4); }
         
         /**
          * Consume a key press (edge-triggered).
@@ -235,6 +239,20 @@ public class GameController {
             if (keyboardController.wasKickPressed()) {
                 player.kick();
             }
+
+            // Purchases: 1=Speed, 2=Health, 3=Damage, 4=Jump
+            if (keyboardController.wasBuySpeedPressed()) {
+                model.purchaseUpgrade(GameModel.AbilityType.SPEED);
+            }
+            if (keyboardController.wasBuyHealthPressed()) {
+                model.purchaseUpgrade(GameModel.AbilityType.HEALTH);
+            }
+            if (keyboardController.wasBuyDamagePressed()) {
+                model.purchaseUpgrade(GameModel.AbilityType.DAMAGE);
+            }
+            if (keyboardController.wasBuyJumpPressed()) {
+                model.purchaseUpgrade(GameModel.AbilityType.JUMP);
+            }
             
         }
     }
@@ -254,7 +272,7 @@ public class GameController {
                 for (GameModel.Enemy enemy : model.getEnemies()) {
                     if (checkBoundingBoxOverlap(player, enemy)) {
                         if (player.tryDealAttack()) {
-                            enemy.takeDamage(player.getCurrentAttackDamage());
+                            model.applyDamage(enemy, player.getCurrentAttackDamage());
                         }
                     }
                 }
@@ -266,7 +284,7 @@ public class GameController {
                     GameModel.Enemy e = (GameModel.Enemy) enemy;
                     if (e.isAttackActive() && checkBoundingBoxOverlap(enemy, player)) {
                         if (e.tryDealAttack()) {
-                            player.takeDamage(e.damage);
+                            model.applyDamage(player, e.damage);
                         }
                     }
                 }

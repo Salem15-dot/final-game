@@ -439,7 +439,63 @@ one flying and other under the ground a little, which maybe because of the overl
 
 
 
-Results 2 : 
+Results 2 : Works and and wolves are spawned with staggered X positions so they don’t stack visually, it is fine, lets now dig deeper in the game as everything works correctly so fat and MethodTester gives correct returnes and games seems working 
+
+
+Prompt 13 : Ok so the game work and everything, but it is soooo boring and there is nothing to do but keep running from the enemies until the time finishes, lets add more features and fun things, think and suggest enhancments if any and be creative and clever and consider the README file and core game methodes and rules don't break or miss up or change anything , here are my ideas :
+1-) costom tools come from sky that sometimes are good sometimes are bad, for example a costom sowrd make the hero (platyer) damage double for 5 secounds (show timers down for the ability ) 
+2-)  i don't see the enemies health make it seen with small green rectabgle top of them, with showing change in health and everything when being hitted
+3-)  when anyone hit the other and decrease his health make some effects like red numbers shows up reflecting how much damaged was dealed
+4-) Make sure adding these without changing anything in the core game that alraedy exsists, also the abilites only apply to the player, and other abilites could be speed for 5 sec, higher jumb for 5 sec (within understadable range), and random box that can give you one of the previous ones or decrease your health by 50, or make you slower for 5 sec, or less damaped for 5 sec, or can't jump for 5 sec!
+
+
+Results : AI is working, it even updated the tester :"I found one direct tester call to takeDamage, so I can still safely switch it to return an int as long as I update that one test line too. I’m making the feature slice now: powerups, effect timers, damage text, and enemy bars." which is good, i forgot to include updating the tester to include the new methodes and things but he already did that. "c:\Users\ERC\OneDrive - Minnesota State\Desktop\final-game> c: && cd "c:\Users\ERC\OneDrive - Minnesota State\Desktop\final-game" && cmd /C ""C:\Program Files\Eclipse Adoptium\jdk-25.0.2.10-hotspot\bin\java.exe" -XX:+ShowCodeDetailsInExceptionMessages -cp "C:\Users\ERC\OneDrive - Minnesota State\Desktop\final-game\bin" MethodTester "
+MethodTester: starting tests...
+Initial player HP: 100
+Initial player lives: 3
+Player moved right: startX=100.0 after=104.16 moved=4.159999999999997
+Player state after jump: JUMP yDelta=-10.790399999999977 onGround=false
+Player state after punch: PUNCH
+Player attack first try: true
+Player attack second try: false
+Spawner created enemy: Goblin
+Enemy HP: 30
+Enemy isDead after lethal damage: true
+Goblin attackActive before try: true
+Goblin tryDealAttack first: true
+Goblin tryDealAttack second: false
+StateController restart first: true
+StateController restart second: false
+MethodTester: tests complete.
+
+c:\Users\ERC\OneDrive - Minnesota State\Desktop\final-game>" 
+
+Prompt 14 :  yes very nice it worked very well, i can see the damage texts, the health bars, and the sky boxs. Lets add health boxes as well, also lets make that when you kill enemie he drops money that you collect and can increase one of your abilites with (speed, health, damage, jump)  where health you can eather increase your maximum health by 10 (so it becomes out of 110), or increase your current health if it is damaged, while for damage you can increase how much damage you deal, or how fast you attack. Make sure that all these still under the previous rules and core ideas that reset when pressing R, doesn't lagg or delete or change anything in the main game after you die, and so on. Changes will be as follow :
+1-) Money object created with its own methodes rules and int counts and so, everything where it best goes so GameModel have the models and view have the visulise and so on
+2-) In the GameView creat a small table for the abilites in the top right of the screen from my view (top left for the computer screen) where the bilites are and how much each one is (increas health first time is 1$, then becomes 2$ if you want to increase it again, and so on) 
+3-) Think and read and understand and make sure everything applies within the games rules and functions and core ideas without breaking anything already exsists or making bugges.
+
+
+
+Results : I gave it a big scope of things to do in purpose to see what it will do and how good/bad this is to learn from it. So far, it has been working for 4 minutes and seems like having issues putting all these things together at once, maybe i should break things into smaller parts , what he did now is :
+"Added a Money drop system in GameModel.java (spawn on enemy death, falls, collectible).
+Added permanent upgrade purchases (AbilityType SPEED/HEALTH/DAMAGE/JUMP) with escalating costs (cost = current level + 1).
+Implemented player permanent upgrade handling inside Player (perm levels affect speed, damage, jump, and health / healing on purchase).
+Hooked purchases to keys 1–4 in GameController.java.
+Added UI: money icons on the ground, player's cash display, and an abilities panel in GameView.java. Purchases show a floating confirmation.
+" 
+
+
+Prompt 15 : I see the money and it works, few enhancemnts :
+1-) Money doesn't reset when diying or restarting, which i like ! so make sure this is not a bug and keep it as a rule and function if possible or whatever best way is, with making sure it does restart evertime the program closed (maybe this is default am just making sure)
+2-) The texts are overlaying so much that the moeny and lives are covering the contry tiles thing and they are not clear, same thing with the UI of the money and abilites (upgrades) covering the timer of ability
+3-) Make it that when you kill an enemy goblin you get heal by 10HP, if it is wolf you heal by 15HP, and 20 if it is the rogue 
+4-) make the J (punch) and K (kick) two different attacks, so that each one has its own cooldown where the less damage J that deals 10 damage has 1 sec less in its cooldown from the K kick, so that when we add speed attack updgrades letter that increase the attack speed by percentage (15% each time up to 10 levels) they increase accodengly, and that the player can attack in two ways now and twice not only once 
+
+Results : The combat side is now split into separate punch and kick cooldowns, and the speed upgrade is being redirected to attack speed instead of movement speed. The money and effect panels are separated now. Enemy kills now also heal the player by type: goblin +10 HP, wolf +15 HP, rogue +20 HP.
+
+
+
 
 I am partway through building [game] in Java with Swing using MVC.
 
@@ -456,12 +512,3 @@ Here are my current files:
 Right now I am stuck on [specific problem]. Help me with that and only that.
 
 
-
-The Asset Workflow
-Make an assets/ folder in your repo, alongside your .java files
-Download a PNG (use PNG — JPG has no transparency and will draw ugly white squares)
-Drop it in assets/ and commit it to Git
-Load it once in the View's constructor — never inside paintComponent, which runs every frame
-Draw it with g.drawImage(...) using the Model's coordinates
-If you used a CC-BY asset, add an Art credits section to your README.md
-The Model never changes. alien.x and alien.y are still the same integers — the View just decides whether to draw a green rectangle or a sprite at that position. This is the MVC payoff.

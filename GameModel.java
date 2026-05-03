@@ -3,6 +3,7 @@
  * Contains all game state and rules. No Swing imports.
  */
 
+import java.awt.Color;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
@@ -24,6 +25,16 @@ public class GameModel {
     public enum EnemyState {
         WALK, ATTACK, HURT, DEAD
     }
+
+    // Player-only power-up types
+    public enum PowerUpType {
+        DOUBLE_DAMAGE, SPEED_BOOST, HIGH_JUMP, DAMAGE_REDUCTION, SLOW, NO_JUMP, LOSE_HP_50, MYSTERY_BOX
+    }
+
+    // Permanent upgrade types purchasable with money
+    public enum AbilityType {
+        SPEED, HEALTH, DAMAGE, JUMP
+    }
     
     // World bounds
     public static final int WORLD_WIDTH = 1280;
@@ -36,7 +47,15 @@ public class GameModel {
     private long levelTimeRemaining; // milliseconds
     private Player player;
     private List<Enemy> enemies;
+    private List<PowerUp> powerUps;
+    private List<FloatingText> floatingTexts;
     private Spawner spawner;
+    private long powerUpSpawnTimer;
+    private long nextPowerUpSpawnDelayMs;
+    private final Random powerUpRandom = new Random();
+    // Money and upgrades
+    private List<Money> moneyList;
+    private int playerMoney;
     
     /**
      * Initialize game model with defaults.
@@ -47,7 +66,13 @@ public class GameModel {
         this.levelTimeRemaining = LEVEL_DURATION_MS;
         this.player = new Player();
         this.enemies = new ArrayList<>();
+        this.powerUps = new ArrayList<>();
+        this.floatingTexts = new ArrayList<>();
+        this.moneyList = new ArrayList<>();
+        this.playerMoney = 0;
         this.spawner = new Spawner(currentLevel);
+        this.powerUpSpawnTimer = 0;
+        this.nextPowerUpSpawnDelayMs = 8000;
     }
     
     /**
@@ -70,6 +95,11 @@ public class GameModel {
         
         // Update spawner
         spawner.update(deltaTime, enemies);
+
+        // Update power-ups and floating combat text
+        updatePowerUps(deltaTime);
+        updateFloatingTexts(deltaTime);
+        updateMoney(deltaTime);
         
         // Update level timer
         levelTimeRemaining -= (long)(deltaTime * 1000);
@@ -107,9 +137,28 @@ public class GameModel {
      */
     public void applyDamage(GameEntity target, int damage) {
         if (target instanceof Player) {
-            ((Player) target).takeDamage(damage);
+            int actualDamage = ((Player) target).takeDamage(damage);
+            if (actualDamage > 0) {
+                addFloatingText(target.getX() + target.getWidth() * 0.5, target.getY() - 10, "-" + actualDamage, Color.RED);
+            }
         } else if (target instanceof Enemy) {
-            ((Enemy) target).takeDamage(damage);
+            int actualDamage = ((Enemy) target).takeDamage(damage);
+            if (actualDamage > 0) {
+                addFloatingText(target.getX() + target.getWidth() * 0.5, target.getY() - 10, "-" + actualDamage, Color.RED);
+                Enemy enemy = (Enemy) target;
+                if (enemy.isDead()) {
+                    // spawn money upon death
+                    int value = 1 + powerUpRandom.nextInt(2); // 1-2 dollars
+                    moneyList.add(new Money(enemy.getX(), enemy.getY(), value));
+                    if (enemy instanceof Goblin) {
+                        player.heal(10);
+                    } else if (enemy instanceof Wolf) {
+                        player.heal(15);
+                    } else if (enemy instanceof Rogue) {
+                        player.heal(20);
+                    }
+                }
+            }
         }
     }
     
@@ -120,7 +169,11 @@ public class GameModel {
         this.currentLevel = levelNumber;
         this.levelTimeRemaining = LEVEL_DURATION_MS;
         this.enemies.clear();
+        this.powerUps.clear();
+        this.floatingTexts.clear();
         this.spawner = new Spawner(levelNumber);
+        this.powerUpSpawnTimer = 0;
+        this.nextPowerUpSpawnDelayMs = 8000 + powerUpRandom.nextInt(5000);
         this.gameState = GameState.PLAYING;
 
         // Give each level an immediate visual enemy check-in.
@@ -167,9 +220,125 @@ public class GameModel {
     public long getLevelTimeRemaining() { return levelTimeRemaining; }
     public Player getPlayer() { return player; }
     public List<Enemy> getEnemies() { return enemies; }
+    public List<PowerUp> getPowerUps() { return powerUps; }
+    public List<FloatingText> getFloatingTexts() { return floatingTexts; }
+    public List<Money> getMoneyList() { return moneyList; }
+    public int getPlayerMoney() { return playerMoney; }
     public Spawner getSpawner() { return spawner; }
     public boolean isCrouching() { return player != null && player.isCrouching(); }
     public void resetPlayer() { this.player = new Player(); }
+    public List<String> getActiveEffectSummaries() { return player == null ? new ArrayList<>() : player.getActiveEffectSummaries(); }
+
+    public void addFloatingText(double x, double y, String text, Color color) { floatingTexts.add(new FloatingText(x, y, text, color)); }
+
+    public String applyPowerUp(PowerUpType type) {
+        if (player == null) {
+            return "";
+        }
+        PowerUpType resolvedType = type;
+        if (type == PowerUpType.MYSTERY_BOX) {
+            PowerUpType[] mysteryChoices = {
+                PowerUpType.DOUBLE_DAMAGE,
+                PowerUpType.SPEED_BOOST,
+                PowerUpType.HIGH_JUMP,
+                PowerUpType.DAMAGE_REDUCTION,
+                PowerUpType.SLOW,
+                PowerUpType.NO_JUMP,
+                PowerUpType.LOSE_HP_50
+            };
+            resolvedType = mysteryChoices[powerUpRandom.nextInt(mysteryChoices.length)];
+        }
+        return player.applyPowerUp(resolvedType);
+    }
+
+    // Purchase a permanent upgrade using player money. Returns a short message.
+    public String purchaseUpgrade(AbilityType ability) {
+        if (player == null) return "No player";
+        int level = player.getPermLevel(ability);
+        int cost = level + 1;
+        if (playerMoney < cost) {
+            return "Not enough $";
+        }
+        playerMoney -= cost;
+        String label = player.applyPermanentUpgrade(ability);
+        addFloatingText(player.getX() + player.getWidth() / 2, player.getY() - 20, "Bought " + label, Color.CYAN);
+        return "Bought " + label;
+    }
+
+    public int getUpgradeCost(AbilityType ability) {
+        if (player == null) return 9999;
+        return player.getPermLevel(ability) + 1;
+    }
+
+    public int getUpgradeLevel(AbilityType ability) {
+        if (player == null) return 0;
+        return player.getPermLevel(ability);
+    }
+
+    private void updatePowerUps(double deltaTime) {
+        long deltaMs = (long) (deltaTime * 1000);
+
+        powerUpSpawnTimer += deltaMs;
+        if (powerUpSpawnTimer >= nextPowerUpSpawnDelayMs) {
+            powerUpSpawnTimer = 0;
+            nextPowerUpSpawnDelayMs = 8000 + powerUpRandom.nextInt(5000);
+            if (powerUps.size() < 2) {
+                powerUps.add(PowerUp.spawnRandom(powerUpRandom));
+            }
+        }
+
+        if (player == null) {
+            return;
+        }
+
+        for (int i = powerUps.size() - 1; i >= 0; i--) {
+            PowerUp powerUp = powerUps.get(i);
+            powerUp.update(deltaTime);
+            if (powerUp.isExpired()) {
+                powerUps.remove(i);
+                continue;
+            }
+            if (checkOverlap(player, powerUp)) {
+                String label = applyPowerUp(powerUp.getType());
+                addFloatingText(powerUp.getX(), powerUp.getY() - 6, label, powerUp.getColor());
+                powerUps.remove(i);
+            }
+        }
+    }
+
+    private void updateMoney(double deltaTime) {
+        if (player == null) return;
+        for (int i = moneyList.size() - 1; i >= 0; i--) {
+            Money m = moneyList.get(i);
+            m.update(deltaTime);
+            if (m.isExpired()) {
+                moneyList.remove(i);
+                continue;
+            }
+            if (checkOverlap(player, m)) {
+                playerMoney += m.getValue();
+                addFloatingText(player.getX() + player.getWidth() / 2, player.getY() - 20, "+$" + m.getValue(), Color.YELLOW);
+                moneyList.remove(i);
+            }
+        }
+    }
+
+    private void updateFloatingTexts(double deltaTime) {
+        for (int i = floatingTexts.size() - 1; i >= 0; i--) {
+            FloatingText text = floatingTexts.get(i);
+            text.update(deltaTime);
+            if (text.isExpired()) {
+                floatingTexts.remove(i);
+            }
+        }
+    }
+
+    private boolean checkOverlap(GameEntity a, GameEntity b) {
+        return !(a.getX() + a.getWidth() < b.getX() ||
+                 b.getX() + b.getWidth() < a.getX() ||
+                 a.getY() + a.getHeight() < b.getY() ||
+                 b.getY() + b.getHeight() < a.getY());
+    }
     
     // ========== PLAYER CLASS ==========
     public static class Player extends GameEntity {
@@ -186,9 +355,12 @@ public class GameModel {
         private double velocityY;
         private boolean onGround;
         private long attackFrameWindow; // Time active attack hitbox is active (ms)
-        private long attackCooldownRemaining;
+        private long punchCooldownRemaining;
+        private long kickCooldownRemaining;
         private boolean attackDelivered;
         private long attackWindowDefault;
+        private long punchAttackWindowDefault;
+        private long kickAttackWindowDefault;
         private long respawnTimer;
         private boolean moveInputThisFrame;
         private boolean runHeld;
@@ -196,6 +368,19 @@ public class GameModel {
         private long actionStateTimer;
         private int currentAttackDamage;
         private boolean crouching;
+        private long damageBoostRemainingMs;
+        private long speedBoostRemainingMs;
+        private long jumpBoostRemainingMs;
+        private long damageReductionRemainingMs;
+        private long slowRemainingMs;
+        private long noJumpRemainingMs;
+        // Permanent upgrade levels applied by purchases
+        private int permSpeedLevel;
+        private int permDamageLevel;
+        private int permJumpLevel;
+        private int permHealthLevel;
+        private int basePunchDamage = 10;
+        private int baseKickDamage = 15;
         
         public Player() {
             super(100, CHARACTER_GROUND_Y - 100, 92, 100);
@@ -204,9 +389,12 @@ public class GameModel {
             this.velocityY = 0;
             this.onGround = true;
             this.attackFrameWindow = 0;
-            this.attackCooldownRemaining = 0;
+            this.punchCooldownRemaining = 0;
+            this.kickCooldownRemaining = 0;
             this.attackDelivered = false;
             this.attackWindowDefault = 220;
+            this.punchAttackWindowDefault = 180;
+            this.kickAttackWindowDefault = 220;
             this.respawnTimer = 0;
             this.moveInputThisFrame = false;
             this.runHeld = false;
@@ -214,6 +402,16 @@ public class GameModel {
             this.actionStateTimer = 0;
             this.currentAttackDamage = 0;
             this.crouching = false;
+            this.damageBoostRemainingMs = 0;
+            this.speedBoostRemainingMs = 0;
+            this.jumpBoostRemainingMs = 0;
+            this.damageReductionRemainingMs = 0;
+            this.slowRemainingMs = 0;
+            this.noJumpRemainingMs = 0;
+            this.permSpeedLevel = 0;
+            this.permDamageLevel = 0;
+            this.permJumpLevel = 0;
+            this.permHealthLevel = 0;
         }
         
         @Override
@@ -228,10 +426,17 @@ public class GameModel {
                 return;
             }
 
-            if (attackCooldownRemaining > 0) {
-                attackCooldownRemaining -= deltaMs;
-                if (attackCooldownRemaining < 0) {
-                    attackCooldownRemaining = 0;
+            if (punchCooldownRemaining > 0) {
+                punchCooldownRemaining -= deltaMs;
+                if (punchCooldownRemaining < 0) {
+                    punchCooldownRemaining = 0;
+                }
+            }
+
+            if (kickCooldownRemaining > 0) {
+                kickCooldownRemaining -= deltaMs;
+                if (kickCooldownRemaining < 0) {
+                    kickCooldownRemaining = 0;
                 }
             }
 
@@ -249,6 +454,8 @@ public class GameModel {
                     state = PlayerState.IDLE;
                 }
             }
+
+            tickEffectTimers(deltaMs);
 
             if (!onGround) {
                 velocityY += GRAVITY * deltaTime;
@@ -296,7 +503,7 @@ public class GameModel {
             }
             moveInputThisFrame = true;
             facing = -1;
-            velocityX = runHeld ? -RUN_SPEED : -WALK_SPEED;
+            velocityX = (runHeld ? -RUN_SPEED : -WALK_SPEED) * getSpeedMultiplier();
             if (onGround && state != PlayerState.PUNCH && state != PlayerState.KICK && state != PlayerState.HURT) {
                 state = runHeld ? PlayerState.RUN : PlayerState.WALK;
             }
@@ -308,7 +515,7 @@ public class GameModel {
             }
             moveInputThisFrame = true;
             facing = 1;
-            velocityX = runHeld ? RUN_SPEED : WALK_SPEED;
+            velocityX = (runHeld ? RUN_SPEED : WALK_SPEED) * getSpeedMultiplier();
             if (onGround && state != PlayerState.PUNCH && state != PlayerState.KICK && state != PlayerState.HURT) {
                 state = runHeld ? PlayerState.RUN : PlayerState.WALK;
             }
@@ -323,10 +530,10 @@ public class GameModel {
         }
 
         public void jump() {
-            if (!onGround || state == PlayerState.DEAD || state == PlayerState.RESPAWNING) {
+            if (!onGround || state == PlayerState.DEAD || state == PlayerState.RESPAWNING || noJumpRemainingMs > 0) {
                 return;
             }
-            velocityY = JUMP_VELOCITY;
+            velocityY = JUMP_VELOCITY * getJumpMultiplier();
             onGround = false;
             state = PlayerState.JUMP;
         }
@@ -335,15 +542,15 @@ public class GameModel {
             if (state == PlayerState.DEAD || state == PlayerState.RESPAWNING) {
                 return;
             }
-            if (attackCooldownRemaining > 0) {
+            if (punchCooldownRemaining > 0) {
                 return;
             }
             state = PlayerState.PUNCH;
-            attackFrameWindow = attackWindowDefault;
+            attackFrameWindow = punchAttackWindowDefault;
             actionStateTimer = 220;
-            currentAttackDamage = 10;
+            currentAttackDamage = Math.max(1, (int) Math.round(getBasePunchDamage() * getDamageMultiplier()));
             velocityX = 0;
-            attackCooldownRemaining = 2000;
+            punchCooldownRemaining = getAttackCooldownMs(1000);
             attackDelivered = false;
         }
 
@@ -351,23 +558,29 @@ public class GameModel {
             if (state == PlayerState.DEAD || state == PlayerState.RESPAWNING) {
                 return;
             }
-            if (attackCooldownRemaining > 0) {
+            if (kickCooldownRemaining > 0) {
                 return;
             }
             state = PlayerState.KICK;
-            attackFrameWindow = attackWindowDefault;
+            attackFrameWindow = kickAttackWindowDefault;
             actionStateTimer = 260;
-            currentAttackDamage = 15;
+            currentAttackDamage = Math.max(1, (int) Math.round(getBaseKickDamage() * getDamageMultiplier()));
             velocityX = 0;
-            attackCooldownRemaining = 2000;
+            kickCooldownRemaining = getAttackCooldownMs(2000);
             attackDelivered = false;
         }
 
-        public void takeDamage(int damage) {
+        private long getAttackCooldownMs(int baseCooldownMs) {
+            double speedMultiplier = 1.0 + (Math.min(permSpeedLevel, 10) * 0.15);
+            return Math.max(200L, Math.round(baseCooldownMs / speedMultiplier));
+        }
+
+        public int takeDamage(int damage) {
             if (state == PlayerState.DEAD || state == PlayerState.RESPAWNING) {
-                return;
+                return 0;
             }
-            hp -= damage;
+            int actualDamage = Math.max(1, (int) Math.round(damage * getIncomingDamageMultiplier()));
+            hp -= actualDamage;
             if (hp <= 0) {
                 hp = 0;
                 lives--;
@@ -381,6 +594,7 @@ public class GameModel {
                 state = PlayerState.HURT;
                 actionStateTimer = 180;
             }
+            return actualDamage;
         }
 
         public void respawn() {
@@ -392,10 +606,17 @@ public class GameModel {
             onGround = true;
             state = PlayerState.IDLE;
             respawnTimer = 0;
-            attackCooldownRemaining = 0;
+            punchCooldownRemaining = 0;
+            kickCooldownRemaining = 0;
             attackFrameWindow = 0;
             attackDelivered = false;
             downHeld = false;
+            damageBoostRemainingMs = 0;
+            speedBoostRemainingMs = 0;
+            jumpBoostRemainingMs = 0;
+            damageReductionRemainingMs = 0;
+            slowRemainingMs = 0;
+            noJumpRemainingMs = 0;
         }
         
         public long getRespawnRemaining() { return respawnTimer; }
@@ -419,6 +640,141 @@ public class GameModel {
         public boolean isOnGround() { return onGround; }
         public boolean isCrouching() { return crouching; }
         public void setCrouching(boolean c) { this.crouching = c; }
+
+        public void heal(int amount) {
+            if (amount <= 0) {
+                return;
+            }
+            hp = Math.min(maxHp, hp + amount);
+        }
+
+        public String applyPowerUp(PowerUpType type) {
+            switch (type) {
+                case DOUBLE_DAMAGE:
+                    damageBoostRemainingMs = 5000;
+                    return "DMG x2";
+                case SPEED_BOOST:
+                    speedBoostRemainingMs = 5000;
+                    return "SPEED+";
+                case HIGH_JUMP:
+                    jumpBoostRemainingMs = 5000;
+                    return "JUMP+";
+                case DAMAGE_REDUCTION:
+                    damageReductionRemainingMs = 5000;
+                    return "DMG-";
+                case SLOW:
+                    slowRemainingMs = 5000;
+                    return "SLOW";
+                case NO_JUMP:
+                    noJumpRemainingMs = 5000;
+                    return "NO JUMP";
+                case LOSE_HP_50:
+                    takeDamage(50);
+                    return "-50";
+                default:
+                    return "?";
+            }
+        }
+
+
+        // Apply a permanent purchase upgrade to the player
+        public String applyPermanentUpgrade(AbilityType type) {
+            switch (type) {
+                case SPEED:
+                    permSpeedLevel++;
+                    return "Atk Speed +" + permSpeedLevel;
+                case HEALTH:
+                    permHealthLevel++;
+                    maxHp += 10;
+                    hp = Math.min(maxHp, hp + 10);
+                    return "Max HP +10";
+                case DAMAGE:
+                    permDamageLevel++;
+                    return "Damage +" + permDamageLevel;
+                case JUMP:
+                    permJumpLevel++;
+                    return "Jump +" + permJumpLevel;
+                default:
+                    return "";
+            }
+        }
+        public int getPermLevel(AbilityType type) {
+            switch (type) {
+                case SPEED: return permSpeedLevel;
+                case HEALTH: return permHealthLevel;
+                case DAMAGE: return permDamageLevel;
+                case JUMP: return permJumpLevel;
+            }
+            return 0;
+        }
+
+        private int getBasePunchDamage() { return basePunchDamage + (permDamageLevel * 2); }
+        private int getBaseKickDamage() { return baseKickDamage + (permDamageLevel * 3); }
+
+        public List<String> getActiveEffectSummaries() {
+            List<String> summaries = new ArrayList<>();
+            addEffectSummary(summaries, "DMG x2", damageBoostRemainingMs);
+            addEffectSummary(summaries, "SPEED+", speedBoostRemainingMs);
+            addEffectSummary(summaries, "JUMP+", jumpBoostRemainingMs);
+            addEffectSummary(summaries, "DMG-", damageReductionRemainingMs);
+            addEffectSummary(summaries, "SLOW", slowRemainingMs);
+            addEffectSummary(summaries, "NO JUMP", noJumpRemainingMs);
+            // Permanent levels
+            if (permSpeedLevel > 0) summaries.add("SPD L" + permSpeedLevel);
+            if (permHealthLevel > 0) summaries.add("HP L" + permHealthLevel);
+            if (permDamageLevel > 0) summaries.add("DMG L" + permDamageLevel);
+            if (permJumpLevel > 0) summaries.add("JMP L" + permJumpLevel);
+            return summaries;
+        }
+
+        private void addEffectSummary(List<String> summaries, String label, long remainingMs) {
+            if (remainingMs > 0) {
+                summaries.add(label + " " + ((remainingMs + 999) / 1000) + "s");
+            }
+        }
+
+        private void tickEffectTimers(long deltaMs) {
+            damageBoostRemainingMs = tickEffect(damageBoostRemainingMs, deltaMs);
+            speedBoostRemainingMs = tickEffect(speedBoostRemainingMs, deltaMs);
+            jumpBoostRemainingMs = tickEffect(jumpBoostRemainingMs, deltaMs);
+            damageReductionRemainingMs = tickEffect(damageReductionRemainingMs, deltaMs);
+            slowRemainingMs = tickEffect(slowRemainingMs, deltaMs);
+            noJumpRemainingMs = tickEffect(noJumpRemainingMs, deltaMs);
+        }
+
+        private long tickEffect(long remainingMs, long deltaMs) {
+            remainingMs -= deltaMs;
+            return Math.max(0, remainingMs);
+        }
+
+        private double getDamageMultiplier() {
+            return damageBoostRemainingMs > 0 ? 2.0 : 1.0;
+        }
+
+        private double getSpeedMultiplier() {
+            double multiplier = 1.0;
+            if (speedBoostRemainingMs > 0) {
+                multiplier *= 1.35;
+            }
+            if (slowRemainingMs > 0) {
+                multiplier *= 0.65;
+            }
+            return multiplier;
+        }
+
+        private double getJumpMultiplier() {
+            double m = jumpBoostRemainingMs > 0 ? 1.4 : 1.0;
+            m *= (1.0 + (permJumpLevel * 0.08));
+            return m;
+        }
+
+        private int getAttackSpeedPercent() {
+            return Math.min(10, permSpeedLevel);
+        }
+
+        private double getIncomingDamageMultiplier() {
+            return damageReductionRemainingMs > 0 ? 0.5 : 1.0;
+        }
     }
     
     // ========== ENEMY BASE CLASS ==========
@@ -522,9 +878,9 @@ public class GameModel {
             state = EnemyState.ATTACK;
         }
 
-        public void takeDamage(int damage) {
+        public int takeDamage(int damage) {
             if (state == EnemyState.DEAD) {
-                return;
+                return 0;
             }
             hp -= damage;
             if (hp <= 0) {
@@ -534,6 +890,7 @@ public class GameModel {
             } else {
                 state = EnemyState.HURT;
             }
+            return damage;
         }
 
         /**
@@ -554,8 +911,98 @@ public class GameModel {
         
         public EnemyState getState() { return state; }
         public int getHp() { return hp; }
+        public int getMaxHp() { return maxHp; }
         public int getFacing() { return facing; }
         public boolean isDead() { return hp <= 0; }
+    }
+
+    // ========== FLYING POWERUP ========== 
+    public static class PowerUp extends GameEntity {
+        private final PowerUpType type;
+        private final Color color;
+        private final String label;
+        private double fallSpeed = 120.0;
+        private long lifeMs = 12000;
+
+        public PowerUp(double x, double y, PowerUpType type, Color color, String label) {
+            super(x, y, 34, 34);
+            this.type = type;
+            this.color = color;
+            this.label = label;
+        }
+
+        public static PowerUp spawnRandom(Random random) {
+            int x = 60 + random.nextInt(Math.max(1, WORLD_WIDTH - 120));
+            int roll = random.nextInt(100);
+            if (roll < 18) return new PowerUp(x, -40, PowerUpType.DOUBLE_DAMAGE, new Color(255, 215, 0), "x2");
+            if (roll < 34) return new PowerUp(x, -40, PowerUpType.SPEED_BOOST, new Color(80, 220, 255), "SPD");
+            if (roll < 50) return new PowerUp(x, -40, PowerUpType.HIGH_JUMP, new Color(120, 255, 120), "JMP");
+            if (roll < 62) return new PowerUp(x, -40, PowerUpType.MYSTERY_BOX, new Color(210, 120, 255), "?");
+            if (roll < 74) return new PowerUp(x, -40, PowerUpType.DAMAGE_REDUCTION, new Color(170, 255, 170), "DMG-");
+            if (roll < 84) return new PowerUp(x, -40, PowerUpType.SLOW, new Color(255, 180, 80), "SLOW");
+            if (roll < 92) return new PowerUp(x, -40, PowerUpType.NO_JUMP, new Color(255, 120, 120), "NOJ");
+            return new PowerUp(x, -40, PowerUpType.LOSE_HP_50, new Color(255, 80, 80), "-50");
+        }
+
+        @Override
+        public void update(double deltaTime) {
+            y += fallSpeed * deltaTime;
+            lifeMs -= (long) (deltaTime * 1000);
+        }
+
+        public PowerUpType getType() { return type; }
+        public Color getColor() { return color; }
+        public String getLabel() { return label; }
+        public boolean isExpired() { return lifeMs <= 0 || y > WORLD_HEIGHT + 40; }
+    }
+
+    // ========== FLOATING TEXT ==========
+    public static class FloatingText {
+        private final String text;
+        private final Color color;
+        private double x;
+        private double y;
+        private long remainingMs = 900;
+
+        public FloatingText(double x, double y, String text, Color color) {
+            this.x = x;
+            this.y = y;
+            this.text = text;
+            this.color = color;
+        }
+
+        public void update(double deltaTime) {
+            long deltaMs = (long) (deltaTime * 1000);
+            remainingMs -= deltaMs;
+            y -= 32.0 * deltaTime;
+        }
+
+        public boolean isExpired() { return remainingMs <= 0; }
+        public double getX() { return x; }
+        public double getY() { return y; }
+        public String getText() { return text; }
+        public Color getColor() { return color; }
+        public long getRemainingMs() { return remainingMs; }
+    }
+
+    // ========== MONEY DROPS ==========
+    public static class Money extends GameEntity {
+        private final int value;
+        private double fallSpeed = 160.0;
+        private long lifeMs = 12000;
+
+        public Money(double x, double y, int value) {
+            super(x, y, 26, 26);
+            this.value = value;
+        }
+
+        public void update(double deltaTime) {
+            y += fallSpeed * deltaTime;
+            lifeMs -= (long) (deltaTime * 1000);
+        }
+
+        public boolean isExpired() { return lifeMs <= 0 || y > WORLD_HEIGHT + 40; }
+        public int getValue() { return value; }
     }
     
     // ========== ENEMY SUBCLASSES ==========
