@@ -69,6 +69,9 @@ public class GameView {
         private BackgroundView backgroundView;
         private HUDView hudView;
         private Map<Class<?>, CharacterView> characterViews;
+        private Rectangle victoryYesButtonBounds = new Rectangle();
+        private Rectangle victoryNoButtonBounds = new Rectangle();
+        private Rectangle howButtonBounds = new Rectangle();
         
         // Animation system fields
         private BufferedImage playerSheet, goblinSheet, rogueSheet, wolfSheet;
@@ -184,15 +187,42 @@ public class GameView {
             drawAbilityPanel(g2d);
 
             // Screen overlays: pause, respawn, game over, victory
+            if (model.getGameState() == GameModel.GameState.TITLE) {
+                drawTitleScreen(g2d);
+                return;
+            }
             if (model.getGameState() == GameModel.GameState.PAUSED) {
                 drawDarkOverlay(g2d, "PAUSED - Press P or Esc to resume");
             } else if (model.getGameState() == GameModel.GameState.GAME_OVER) {
                 drawDarkOverlay(g2d, "GAME OVER - Press R to restart");
             } else if (model.getGameState() == GameModel.GameState.VICTORY) {
-                drawDarkOverlay(g2d, "VICTORY!");
+                drawVictoryPrompt(g2d);
             } else if (player != null && player.getState() == GameModel.PlayerState.DEAD && player.getRespawnRemaining() > 0) {
                 drawDarkOverlay(g2d, "Respawning...");
             }
+        }
+
+        private void drawTitleScreen(Graphics2D g2d) {
+            drawDarkOverlay(g2d, "BRAWLER ARENA");
+            String prompt = "Press SPACE to start";
+            g2d.setFont(new Font("Arial", Font.BOLD, 22));
+            FontMetrics fm = g2d.getFontMetrics();
+            int promptX = (getWidth() - fm.stringWidth(prompt)) / 2;
+            g2d.drawString(prompt, promptX, getHeight() / 2 + 30);
+
+            // High score
+            String hs = "High Score: " + model.getHighScore();
+            g2d.setFont(new Font("Arial", Font.PLAIN, 14));
+            int hsX = (getWidth() - g2d.getFontMetrics().stringWidth(hs)) / 2;
+            g2d.drawString(hs, hsX, getHeight() / 2 + 20);
+
+            // How to play button
+            int buttonW = 220;
+            int buttonH = 40;
+            int bx = (getWidth() - buttonW) / 2;
+            int by = getHeight() / 2 + 70;
+            howButtonBounds = new Rectangle(bx, by, buttonW, buttonH);
+            drawButton(g2d, howButtonBounds, "How to play");
         }
 
         private void drawDarkOverlay(Graphics2D g2d, String message) {
@@ -207,6 +237,53 @@ public class GameView {
             int x = (getWidth() - fm.stringWidth(message)) / 2;
             int y = (getHeight() / 2) - (fm.getHeight() / 2) + fm.getAscent();
             g2d.drawString(message, x, y);
+        }
+
+        private void drawVictoryPrompt(Graphics2D g2d) {
+            drawDarkOverlay(g2d, "VICTORY!");
+
+            String prompt = "Ready for the real game?";
+            g2d.setFont(new Font("Arial", Font.BOLD, 24));
+            FontMetrics fm = g2d.getFontMetrics();
+            int promptX = (getWidth() - fm.stringWidth(prompt)) / 2;
+            g2d.drawString(prompt, promptX, getHeight() / 2 + 30);
+
+            int buttonY = getHeight() / 2 + 70;
+            int buttonW = 120;
+            int buttonH = 42;
+            int spacing = 20;
+            int totalWidth = (buttonW * 2) + spacing;
+            int startX = (getWidth() - totalWidth) / 2;
+
+            victoryYesButtonBounds = new Rectangle(startX, buttonY, buttonW, buttonH);
+            victoryNoButtonBounds = new Rectangle(startX + buttonW + spacing, buttonY, buttonW, buttonH);
+
+            drawButton(g2d, victoryYesButtonBounds, "Yes");
+            drawButton(g2d, victoryNoButtonBounds, "No");
+        }
+
+        private void drawButton(Graphics2D g2d, Rectangle bounds, String text) {
+            g2d.setColor(new Color(255, 255, 255, 220));
+            g2d.fillRoundRect(bounds.x, bounds.y, bounds.width, bounds.height, 14, 14);
+            g2d.setColor(Color.BLACK);
+            g2d.drawRoundRect(bounds.x, bounds.y, bounds.width, bounds.height, 14, 14);
+            g2d.setFont(new Font("Arial", Font.BOLD, 22));
+            FontMetrics fm = g2d.getFontMetrics();
+            int textX = bounds.x + (bounds.width - fm.stringWidth(text)) / 2;
+            int textY = bounds.y + ((bounds.height + fm.getAscent()) / 2) - 4;
+            g2d.drawString(text, textX, textY);
+        }
+
+        public Rectangle getVictoryYesButtonBounds() {
+            return new Rectangle(victoryYesButtonBounds);
+        }
+
+        public Rectangle getVictoryNoButtonBounds() {
+            return new Rectangle(victoryNoButtonBounds);
+        }
+
+        public Rectangle getHowButtonBounds() {
+            return new Rectangle(howButtonBounds);
         }
 
         private void drawPowerUps(Graphics2D g2d) {

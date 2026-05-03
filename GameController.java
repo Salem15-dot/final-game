@@ -6,6 +6,8 @@
 import javax.swing.*;
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -25,14 +27,29 @@ public class GameController {
         this.keyboardController = new KeyboardController();
         this.collisionController = new CollisionController();
         this.stateController = new StateController(model, view);
+        SoundManager.playMusic();
         
         // Setup input on game window
         view.getGameWindow().addKeyListener(keyboardController);
         view.getGameWindow().getGamePanel().addKeyListener(keyboardController);
+        view.getGameWindow().getGamePanel().addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                // Title screen How-to-play handling
+                if (model.getGameState() == GameModel.GameState.TITLE) {
+                    GameView.GamePanel panel = view.getGameWindow().getGamePanel();
+                    if (panel.getHowButtonBounds().contains(e.getPoint())) {
+                        String msg = "Controls:\n- A/D: Move left/right\n- Shift: Run\n- W / Space: Jump\n- S: Crouch\n- J: Punch\n- K: Kick\n- P / Esc: Pause\n- R: Restart\n\nObjective: Survive the round and defeat enemies.";
+                        JOptionPane.showMessageDialog(view.getGameWindow(), msg, "How to play", JOptionPane.INFORMATION_MESSAGE);
+                        return;
+                    }
+                }
+                handleVictoryClick(e);
+            }
+        });
         SwingUtilities.invokeLater(() -> view.getGameWindow().getGamePanel().requestFocusInWindow());
 
-        // Start directly in level 1 for iterative gameplay testing.
-        this.stateController.startNewGame();
+        // Start at title screen; press SPACE to begin.
         
         // Start game loop
         this.gameLoop = new GameLoop(model, view, keyboardController, collisionController, stateController);
@@ -88,6 +105,8 @@ public class GameController {
         public boolean wasPausePressed() {
             return consumeKey(KeyEvent.VK_ESCAPE) || consumeKey(KeyEvent.VK_P);
         }
+
+        public boolean wasStartPressed() { return consumeKey(KeyEvent.VK_SPACE); }
 
         public boolean wasRestartPressed() { return consumeKey(KeyEvent.VK_R); }
         public boolean wasBuySpeedPressed() { return consumeKey(KeyEvent.VK_1); }
@@ -205,6 +224,12 @@ public class GameController {
 
             if (restartPressed) {
                 stateController.tryRestart();
+            }
+
+            // If we're on the title screen, allow START (SPACE) to launch the game
+            if (model.getGameState() == GameModel.GameState.TITLE && keyboardController.wasStartPressed()) {
+                stateController.startNewGame();
+                return;
             }
 
             if (player == null || model.getGameState() != GameModel.GameState.PLAYING) {
@@ -367,6 +392,19 @@ public class GameController {
          */
         public void gameOver() {
             model.setGameState(GameModel.GameState.GAME_OVER);
+        }
+    }
+
+    private void handleVictoryClick(MouseEvent event) {
+        if (model.getGameState() != GameModel.GameState.VICTORY) {
+            return;
+        }
+
+        GameView.GamePanel panel = view.getGameWindow().getGamePanel();
+        if (panel.getVictoryYesButtonBounds().contains(event.getPoint())) {
+            model.startBossLevel();
+        } else if (panel.getVictoryNoButtonBounds().contains(event.getPoint())) {
+            stateController.startNewGame();
         }
     }
     

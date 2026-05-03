@@ -494,7 +494,38 @@ Prompt 15 : I see the money and it works, few enhancemnts :
 
 Results : The combat side is now split into separate punch and kick cooldowns, and the speed upgrade is being redirected to attack speed instead of movement speed. The money and effect panels are separated now. Enemy kills now also heal the player by type: goblin +10 HP, wolf +15 HP, rogue +20 HP.
 
+Prompt 16: That was a bit overpower, make the goblin give only 3 heal, the wolf 5 , the roguer 7 HP. And make the damage dealed by the gobline increase by 3 each level, so in the first level it is 15, second it is 18, and so on. For the wolf that starts coming in level two, make his damage 20, then increase by 5 so 25 in 3ed leve, and so on, and for the roguer make it 30 damage dealed , then increase by 10 so 40 in level 4 and so on. Also make the attack rate of the player a bit slower, so the cooldown is extra 1 sec , so if it was 3 for the kick make it 4, and 3 for the J if it was 2, if they were 1 and 2 make them 2 and 3. Also when winning display in addition to victory : Ready for the real game? and a btn says yes, and one says no which restart the game, the Yes btn starts level of the boss where there are 10 enemies attacking instead of 4 only ! 
 
+
+
+
+Results : Goblin heals the player for 3 HP, wolf for 5 HP, rogue for 7 HP.
+Enemy damage now scales by level: goblin 15/18/21/24/27, wolf 20/25/30/35, rogue 30/40/50.
+Player attacks are slower now: punch and kick have separate cooldowns, with punch at 2 seconds base and kick at 3 seconds base, and the attack-speed upgrade still reduces those cooldowns by 15% per level up to 10 levels.
+The victory flow now shows a real choice overlay:
+
+VICTORY!
+Ready for the real game?
+Yes starts a boss challenge level with up to 10 enemies on screen.
+No restarts the game.
+
+
+Prompt 17: Make the texts for the damage dealed by player green not red so that it can be seen which damage is whose, also make a musics and sounds effects 
+
+
+results : The damage numbers for hits on enemies are now green, while player damage stays red so you can tell them apart. Also added a self-contained SoundManager with synthesized background music and effects for hits, hurt, coin pickup, power-ups, purchases, and enemy deaths. Music is sooo bad, I will add mine later
+
+Prompt 18 : Make it so that when the round ends also heal the player by 20 or full if his current health is within 20 from the maximum health (so basicaly never exceds the maximum health, make sure same thing with other types of healing where the current health never exceds the maximum health) also add healing to the boxes types that comes from the sky, and most importantly add a Title screen with the game name and "Press SPACE to start" and a btn with "How to play" that discripe the play rules and keys (W jumb, J punch, etc...) also add Persistent high score — read and write a single int from a text file where it says highest score of enemies killed. 
+
+
+Results : Spawn now includes healing boxes (small +10, big +20),Player is healed by 20 (clamped) when a round ends,Enemy deaths increment enemiesKilled; persistent highScore stored to highscore.txt (load/save implemented).Added Title screen overlay with "Press SPACE to start", a "How to play" button, and High Score display. Exposed getHowButtonBounds() so clicks open the help dialog.Title screen now remains until player presses SPACE.
+SPACE on the title starts the game.
+Mouse clicks on the How-to-play button open a help dialog.
+Kept victory handling intact.
+
+
+
+ 
 
 
 I am partway through building [game] in Java with Swing using MVC.

@@ -4,6 +4,12 @@
  */
 
 import java.awt.Color;
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileReader;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
@@ -28,7 +34,8 @@ public class GameModel {
 
     // Player-only power-up types
     public enum PowerUpType {
-        DOUBLE_DAMAGE, SPEED_BOOST, HIGH_JUMP, DAMAGE_REDUCTION, SLOW, NO_JUMP, LOSE_HP_50, MYSTERY_BOX
+        DOUBLE_DAMAGE, SPEED_BOOST, HIGH_JUMP, DAMAGE_REDUCTION, SLOW, NO_JUMP, LOSE_HP_50, MYSTERY_BOX,
+        HEAL_SMALL, HEAL_BIG
     }
 
     // Permanent upgrade types purchasable with money
@@ -56,6 +63,9 @@ public class GameModel {
     // Money and upgrades
     private List<Money> moneyList;
     private int playerMoney;
+    private int enemiesKilled;
+    private int highScore;
+    private static final String HIGH_SCORE_FILE = "highscore.txt";
     
     /**
      * Initialize game model with defaults.
@@ -73,6 +83,9 @@ public class GameModel {
         this.spawner = new Spawner(currentLevel);
         this.powerUpSpawnTimer = 0;
         this.nextPowerUpSpawnDelayMs = 8000;
+        this.enemiesKilled = 0;
+        this.highScore = 0;
+        loadHighScore();
     }
     
     /**
@@ -124,6 +137,8 @@ public class GameModel {
         }
 
         if (levelTimeRemaining <= 0) {
+            // Heal the player at round end (clamped by Player.heal)
+            if (player != null) player.heal(20);
             if (currentLevel >= 4) {
                 gameState = GameState.VICTORY;
             } else {
@@ -140,23 +155,32 @@ public class GameModel {
             int actualDamage = ((Player) target).takeDamage(damage);
             if (actualDamage > 0) {
                 addFloatingText(target.getX() + target.getWidth() * 0.5, target.getY() - 10, "-" + actualDamage, Color.RED);
+                SoundManager.playHurt();
             }
         } else if (target instanceof Enemy) {
             int actualDamage = ((Enemy) target).takeDamage(damage);
             if (actualDamage > 0) {
-                addFloatingText(target.getX() + target.getWidth() * 0.5, target.getY() - 10, "-" + actualDamage, Color.RED);
+                addFloatingText(target.getX() + target.getWidth() * 0.5, target.getY() - 10, "-" + actualDamage, Color.GREEN);
+                SoundManager.playHit();
                 Enemy enemy = (Enemy) target;
                 if (enemy.isDead()) {
                     // spawn money upon death
                     int value = 1 + powerUpRandom.nextInt(2); // 1-2 dollars
                     moneyList.add(new Money(enemy.getX(), enemy.getY(), value));
                     if (enemy instanceof Goblin) {
-                        player.heal(10);
+                        player.heal(3);
                     } else if (enemy instanceof Wolf) {
-                        player.heal(15);
+                        player.heal(5);
                     } else if (enemy instanceof Rogue) {
-                        player.heal(20);
+                        player.heal(7);
                     }
+                    // Track kills and persistent high score
+                    enemiesKilled++;
+                    if (enemiesKilled > highScore) {
+                        highScore = enemiesKilled;
+                        saveHighScore();
+                    }
+                    SoundManager.playEnemyDown();
                 }
             }
         }
@@ -194,6 +218,10 @@ public class GameModel {
         }
         startLevel(currentLevel + 1);
     }
+
+    public void startBossLevel() {
+        startLevel(5);
+    }
     
     /**
      * Pause the game.
@@ -228,12 +256,23 @@ public class GameModel {
     public boolean isCrouching() { return player != null && player.isCrouching(); }
     public void resetPlayer() { this.player = new Player(); }
     public List<String> getActiveEffectSummaries() { return player == null ? new ArrayList<>() : player.getActiveEffectSummaries(); }
+    public int getEnemiesKilled() { return enemiesKilled; }
+    public int getHighScore() { return highScore; }
 
     public void addFloatingText(double x, double y, String text, Color color) { floatingTexts.add(new FloatingText(x, y, text, color)); }
 
     public String applyPowerUp(PowerUpType type) {
         if (player == null) {
             return "";
+        }
+        // Direct heal power-ups handled here so they clamp via Player.heal()
+        if (type == PowerUpType.HEAL_SMALL) {
+            player.heal(10);
+            return "+10 HP";
+        }
+        if (type == PowerUpType.HEAL_BIG) {
+            player.heal(20);
+            return "+20 HP";
         }
         PowerUpType resolvedType = type;
         if (type == PowerUpType.MYSTERY_BOX) {
@@ -244,7 +283,8 @@ public class GameModel {
                 PowerUpType.DAMAGE_REDUCTION,
                 PowerUpType.SLOW,
                 PowerUpType.NO_JUMP,
-                PowerUpType.LOSE_HP_50
+                PowerUpType.LOSE_HP_50,
+                PowerUpType.HEAL_SMALL
             };
             resolvedType = mysteryChoices[powerUpRandom.nextInt(mysteryChoices.length)];
         }
@@ -262,6 +302,7 @@ public class GameModel {
         playerMoney -= cost;
         String label = player.applyPermanentUpgrade(ability);
         addFloatingText(player.getX() + player.getWidth() / 2, player.getY() - 20, "Bought " + label, Color.CYAN);
+        SoundManager.playPurchase();
         return "Bought " + label;
     }
 
@@ -301,6 +342,7 @@ public class GameModel {
             if (checkOverlap(player, powerUp)) {
                 String label = applyPowerUp(powerUp.getType());
                 addFloatingText(powerUp.getX(), powerUp.getY() - 6, label, powerUp.getColor());
+                SoundManager.playPowerUp();
                 powerUps.remove(i);
             }
         }
@@ -318,6 +360,7 @@ public class GameModel {
             if (checkOverlap(player, m)) {
                 playerMoney += m.getValue();
                 addFloatingText(player.getX() + player.getWidth() / 2, player.getY() - 20, "+$" + m.getValue(), Color.YELLOW);
+                SoundManager.playCoin();
                 moneyList.remove(i);
             }
         }
@@ -339,6 +382,34 @@ public class GameModel {
                  a.getY() + a.getHeight() < b.getY() ||
                  b.getY() + b.getHeight() < a.getY());
     }
+
+    // ===== High score persistence =====
+    private void loadHighScore() {
+        File f = new File(HIGH_SCORE_FILE);
+        if (!f.exists()) return;
+        try (BufferedReader r = new BufferedReader(new FileReader(f))) {
+            String line = r.readLine();
+            if (line != null) {
+                try {
+                    highScore = Integer.parseInt(line.trim());
+                } catch (NumberFormatException ex) {
+                    highScore = 0;
+                }
+            }
+        } catch (IOException e) {
+            // ignore read errors
+            highScore = 0;
+        }
+    }
+
+    private void saveHighScore() {
+        File f = new File(HIGH_SCORE_FILE);
+        try (BufferedWriter w = new BufferedWriter(new FileWriter(f))) {
+            w.write(Integer.toString(highScore));
+        } catch (IOException e) {
+            // ignore write errors
+        }
+    }
     
     // ========== PLAYER CLASS ==========
     public static class Player extends GameEntity {
@@ -358,7 +429,6 @@ public class GameModel {
         private long punchCooldownRemaining;
         private long kickCooldownRemaining;
         private boolean attackDelivered;
-        private long attackWindowDefault;
         private long punchAttackWindowDefault;
         private long kickAttackWindowDefault;
         private long respawnTimer;
@@ -392,7 +462,6 @@ public class GameModel {
             this.punchCooldownRemaining = 0;
             this.kickCooldownRemaining = 0;
             this.attackDelivered = false;
-            this.attackWindowDefault = 220;
             this.punchAttackWindowDefault = 180;
             this.kickAttackWindowDefault = 220;
             this.respawnTimer = 0;
@@ -550,7 +619,7 @@ public class GameModel {
             actionStateTimer = 220;
             currentAttackDamage = Math.max(1, (int) Math.round(getBasePunchDamage() * getDamageMultiplier()));
             velocityX = 0;
-            punchCooldownRemaining = getAttackCooldownMs(1000);
+            punchCooldownRemaining = getAttackCooldownMs(2000);
             attackDelivered = false;
         }
 
@@ -566,12 +635,12 @@ public class GameModel {
             actionStateTimer = 260;
             currentAttackDamage = Math.max(1, (int) Math.round(getBaseKickDamage() * getDamageMultiplier()));
             velocityX = 0;
-            kickCooldownRemaining = getAttackCooldownMs(2000);
+            kickCooldownRemaining = getAttackCooldownMs(3000);
             attackDelivered = false;
         }
 
         private long getAttackCooldownMs(int baseCooldownMs) {
-            double speedMultiplier = 1.0 + (Math.min(permSpeedLevel, 10) * 0.15);
+            double speedMultiplier = 1.0 + (getAttackSpeedPercent() * 0.15);
             return Math.max(200L, Math.round(baseCooldownMs / speedMultiplier));
         }
 
@@ -914,6 +983,8 @@ public class GameModel {
         public int getMaxHp() { return maxHp; }
         public int getFacing() { return facing; }
         public boolean isDead() { return hp <= 0; }
+        public void setDamage(int damage) { this.damage = damage; }
+        public int getDamage() { return damage; }
     }
 
     // ========== FLYING POWERUP ========== 
@@ -934,13 +1005,15 @@ public class GameModel {
         public static PowerUp spawnRandom(Random random) {
             int x = 60 + random.nextInt(Math.max(1, WORLD_WIDTH - 120));
             int roll = random.nextInt(100);
-            if (roll < 18) return new PowerUp(x, -40, PowerUpType.DOUBLE_DAMAGE, new Color(255, 215, 0), "x2");
-            if (roll < 34) return new PowerUp(x, -40, PowerUpType.SPEED_BOOST, new Color(80, 220, 255), "SPD");
-            if (roll < 50) return new PowerUp(x, -40, PowerUpType.HIGH_JUMP, new Color(120, 255, 120), "JMP");
-            if (roll < 62) return new PowerUp(x, -40, PowerUpType.MYSTERY_BOX, new Color(210, 120, 255), "?");
-            if (roll < 74) return new PowerUp(x, -40, PowerUpType.DAMAGE_REDUCTION, new Color(170, 255, 170), "DMG-");
-            if (roll < 84) return new PowerUp(x, -40, PowerUpType.SLOW, new Color(255, 180, 80), "SLOW");
-            if (roll < 92) return new PowerUp(x, -40, PowerUpType.NO_JUMP, new Color(255, 120, 120), "NOJ");
+            if (roll < 12) return new PowerUp(x, -40, PowerUpType.HEAL_SMALL, new Color(160, 255, 160), "+10");
+            if (roll < 16) return new PowerUp(x, -40, PowerUpType.HEAL_BIG, new Color(100, 255, 180), "+20");
+            if (roll < 34) return new PowerUp(x, -40, PowerUpType.DOUBLE_DAMAGE, new Color(255, 215, 0), "x2");
+            if (roll < 50) return new PowerUp(x, -40, PowerUpType.SPEED_BOOST, new Color(80, 220, 255), "SPD");
+            if (roll < 66) return new PowerUp(x, -40, PowerUpType.HIGH_JUMP, new Color(120, 255, 120), "JMP");
+            if (roll < 78) return new PowerUp(x, -40, PowerUpType.MYSTERY_BOX, new Color(210, 120, 255), "?");
+            if (roll < 88) return new PowerUp(x, -40, PowerUpType.DAMAGE_REDUCTION, new Color(170, 255, 170), "DMG-");
+            if (roll < 94) return new PowerUp(x, -40, PowerUpType.SLOW, new Color(255, 180, 80), "SLOW");
+            if (roll < 98) return new PowerUp(x, -40, PowerUpType.NO_JUMP, new Color(255, 120, 120), "NOJ");
             return new PowerUp(x, -40, PowerUpType.LOSE_HP_50, new Color(255, 80, 80), "-50");
         }
 
@@ -1094,9 +1167,12 @@ public class GameModel {
             } else if (level == 3) {
                 spawnInterval = 2400;
                 maxEnemiesOnScreen = 4;
-            } else {
+            } else if (level == 4) {
                 spawnInterval = 2100;
                 maxEnemiesOnScreen = 4;
+            } else {
+                spawnInterval = 1400;
+                maxEnemiesOnScreen = 10;
             }
         }
         
@@ -1125,34 +1201,73 @@ public class GameModel {
             int spawnX = WORLD_WIDTH + 20;
             int roll;
             if (level == 1) {
-                return new Goblin(spawnX, GROUND_Y - 72);
+                Goblin goblin = new Goblin(spawnX, GROUND_Y - 72);
+                goblin.setDamage(15);
+                return goblin;
             }
 
             if (level == 2) {
                 roll = random.nextInt(2);
-                return (roll == 0) ? new Goblin(spawnX, GROUND_Y - 72) : new Wolf(nextWolfSpawnX(spawnX), GROUND_Y - 80);
+                if (roll == 0) {
+                    Goblin goblin = new Goblin(spawnX, GROUND_Y - 72);
+                    goblin.setDamage(18);
+                    return goblin;
+                }
+                Wolf wolf = new Wolf(nextWolfSpawnX(spawnX), GROUND_Y - 80);
+                wolf.setDamage(20);
+                return wolf;
             }
 
             if (level == 3) {
                 roll = random.nextInt(3);
                 if (roll == 0) {
-                    return new Goblin(spawnX, GROUND_Y - 72);
+                    Goblin goblin = new Goblin(spawnX, GROUND_Y - 72);
+                    goblin.setDamage(21);
+                    return goblin;
                 }
                 if (roll == 1) {
-                    return new Wolf(nextWolfSpawnX(spawnX), GROUND_Y - 80);
+                    Wolf wolf = new Wolf(nextWolfSpawnX(spawnX), GROUND_Y - 80);
+                    wolf.setDamage(25);
+                    return wolf;
                 }
-                return new Rogue(spawnX, GROUND_Y - 96);
+                Rogue rogue = new Rogue(spawnX, GROUND_Y - 96);
+                rogue.setDamage(30);
+                return rogue;
             }
 
-            // Level 4: all enemy types.
+            if (level == 4) {
+                // Level 4: all enemy types.
+                roll = random.nextInt(3);
+                if (roll == 0) {
+                    Goblin goblin = new Goblin(spawnX, GROUND_Y - 72);
+                    goblin.setDamage(24);
+                    return goblin;
+                }
+                if (roll == 1) {
+                    Wolf wolf = new Wolf(nextWolfSpawnX(spawnX), GROUND_Y - 80);
+                    wolf.setDamage(30);
+                    return wolf;
+                }
+                Rogue rogue = new Rogue(spawnX, GROUND_Y - 96);
+                rogue.setDamage(40);
+                return rogue;
+            }
+
+            // Boss challenge level: stronger enemies, more on screen.
             roll = random.nextInt(3);
             if (roll == 0) {
-                return new Goblin(spawnX, GROUND_Y - 72);
+                Goblin goblin = new Goblin(spawnX, GROUND_Y - 72);
+                goblin.setDamage(27);
+                return goblin;
             }
             if (roll == 1) {
-                return new Wolf(nextWolfSpawnX(spawnX), GROUND_Y - 80);
+                Wolf wolf = new Wolf(nextWolfSpawnX(spawnX), GROUND_Y - 80);
+                wolf.setDamage(35);
+                return wolf;
             }
-            return new Rogue(spawnX, GROUND_Y - 96);
+            Rogue rogue = new Rogue(spawnX, GROUND_Y - 96);
+            rogue.setDamage(50);
+            return rogue;
         }
 
         private int nextWolfSpawnX(int baseSpawnX) {
