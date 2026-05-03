@@ -194,7 +194,7 @@ public class GameView {
             if (model.getGameState() == GameModel.GameState.PAUSED) {
                 drawDarkOverlay(g2d, "PAUSED - Press P or Esc to resume");
             } else if (model.getGameState() == GameModel.GameState.GAME_OVER) {
-                drawDarkOverlay(g2d, "GAME OVER - Press R to restart");
+                drawGameOverOverlay(g2d);
             } else if (model.getGameState() == GameModel.GameState.VICTORY) {
                 drawVictoryPrompt(g2d);
             } else if (player != null && player.getState() == GameModel.PlayerState.DEAD && player.getRespawnRemaining() > 0) {
@@ -267,6 +267,31 @@ public class GameView {
             g2d.drawString(message, x, y);
         }
 
+        private void drawGameOverOverlay(Graphics2D g2d) {
+            // Dark background
+            Composite old = g2d.getComposite();
+            g2d.setColor(new Color(0,0,0,180));
+            g2d.fillRect(0,0,getWidth(), getHeight());
+            g2d.setComposite(old);
+
+            // Main message
+            String msg = "GAME OVER - Press R to restart";
+            g2d.setColor(Color.WHITE);
+            g2d.setFont(new Font("Arial", Font.BOLD, 36));
+            FontMetrics fm = g2d.getFontMetrics();
+            int x = (getWidth() - fm.stringWidth(msg)) / 2;
+            int y = (getHeight() / 2) - (fm.getHeight() / 2) + fm.getAscent();
+            g2d.drawString(msg, x, y);
+
+            // High score line below
+            String hs = "High Score: " + model.getHighScore();
+            g2d.setFont(new Font("Arial", Font.PLAIN, 18));
+            FontMetrics hfm = g2d.getFontMetrics();
+            int hx = (getWidth() - hfm.stringWidth(hs)) / 2;
+            int hy = y + 40;
+            g2d.drawString(hs, hx, hy);
+        }
+
         private void drawVictoryPrompt(Graphics2D g2d) {
             drawDarkOverlay(g2d, "VICTORY!");
 
@@ -275,6 +300,13 @@ public class GameView {
             FontMetrics fm = g2d.getFontMetrics();
             int promptX = (getWidth() - fm.stringWidth(prompt)) / 2;
             g2d.drawString(prompt, promptX, getHeight() / 2 + 30);
+
+            // Show high score beneath the prompt
+            String hs = "High Score: " + model.getHighScore();
+            g2d.setFont(new Font("Arial", Font.PLAIN, 16));
+            FontMetrics hfm = g2d.getFontMetrics();
+            int hsX = (getWidth() - hfm.stringWidth(hs)) / 2;
+            g2d.drawString(hs, hsX, getHeight() / 2 + 58);
 
             int buttonY = getHeight() / 2 + 70;
             int buttonW = 120;

@@ -35,7 +35,7 @@ public class GameModel {
     // Player-only power-up types
     public enum PowerUpType {
         DOUBLE_DAMAGE, SPEED_BOOST, HIGH_JUMP, DAMAGE_REDUCTION, SLOW, NO_JUMP, LOSE_HP_50, MYSTERY_BOX,
-        HEAL_SMALL, HEAL_BIG
+        HEAL_SMALL, HEAL_BIG, EXTRA_LIFE
     }
 
     // Permanent upgrade types purchasable with money
@@ -164,9 +164,11 @@ public class GameModel {
                 SoundManager.playHit();
                 Enemy enemy = (Enemy) target;
                 if (enemy.isDead()) {
-                    // spawn money upon death
-                    int value = 1 + powerUpRandom.nextInt(2); // 1-2 dollars
-                    moneyList.add(new Money(enemy.getX(), enemy.getY(), value));
+                            // spawn money upon death (value by enemy type)
+                            int value = 1;
+                            if (enemy instanceof Wolf) value = 2;
+                            else if (enemy instanceof Rogue) value = 3;
+                            moneyList.add(new Money(enemy.getX(), enemy.getY(), value));
                     if (enemy instanceof Goblin) {
                         player.heal(3);
                     } else if (enemy instanceof Wolf) {
@@ -273,6 +275,10 @@ public class GameModel {
         if (type == PowerUpType.HEAL_BIG) {
             player.heal(20);
             return "+20 HP";
+        }
+        if (type == PowerUpType.EXTRA_LIFE) {
+            player.addLife();
+            return "+1 Life";
         }
         PowerUpType resolvedType = type;
         if (type == PowerUpType.MYSTERY_BOX) {
@@ -717,6 +723,10 @@ public class GameModel {
             hp = Math.min(maxHp, hp + amount);
         }
 
+        public void addLife() {
+            this.lives++;
+        }
+
         public String applyPowerUp(PowerUpType type) {
             switch (type) {
                 case DOUBLE_DAMAGE:
@@ -1005,8 +1015,9 @@ public class GameModel {
         public static PowerUp spawnRandom(Random random) {
             int x = 60 + random.nextInt(Math.max(1, WORLD_WIDTH - 120));
             int roll = random.nextInt(100);
-            if (roll < 12) return new PowerUp(x, -40, PowerUpType.HEAL_SMALL, new Color(160, 255, 160), "+10");
-            if (roll < 16) return new PowerUp(x, -40, PowerUpType.HEAL_BIG, new Color(100, 255, 180), "+20");
+            if (roll < 10) return new PowerUp(x, -40, PowerUpType.HEAL_SMALL, new Color(160, 255, 160), "+10");
+            if (roll < 14) return new PowerUp(x, -40, PowerUpType.HEAL_BIG, new Color(100, 255, 180), "+20");
+            if (roll < 16) return new PowerUp(x, -40, PowerUpType.EXTRA_LIFE, new Color(255, 220, 200), "+1 L");
             if (roll < 34) return new PowerUp(x, -40, PowerUpType.DOUBLE_DAMAGE, new Color(255, 215, 0), "x2");
             if (roll < 50) return new PowerUp(x, -40, PowerUpType.SPEED_BOOST, new Color(80, 220, 255), "SPD");
             if (roll < 66) return new PowerUp(x, -40, PowerUpType.HIGH_JUMP, new Color(120, 255, 120), "JMP");

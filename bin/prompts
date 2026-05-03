@@ -529,6 +529,14 @@ Prompt 19 : Highest score text is overlaying with the title and press space  thi
 Results : High Score shown in a small top-right box (no overlap). Compiled and ran MethodTester — all tests passed
 
 
+PROMPT 19 : I want the highest score to show also in the restart and victory windows, also i want to add aother box coming from the sky that gives one life. And i want to make it that wolf gives 2$, and rogue gives 3$. update GameModel.java (life power-up, money values), and GameView.java (show high score on Game Over and Victory, add game-over overlay).
+
+Results : High score is persisted via the existing load/save logic; extra-life increments the lives field directly, moeny dropping works as said. 
+
+
+prompt 20: Sorry forgot to mention, add it (the highest score) also to the pause window, also make the game window able to open full window . 
+
+
  
 
 
