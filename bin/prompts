@@ -591,4 +591,8 @@ Here's the complete replacement SoundManager.java:"
 
 
 
-Results : No sound is playing no, not even the music, here are my codes and files i belive it is naming and pathing issues : 
+Results 1: No sound is playing no, not even the music, here are my codes and files i belive it is naming and pathing issues : 
+
+
+
+Results 2 : Works perfectly, music works, sounds work, everything as it supposed to! just one more enhancemt with the music not repeating after it finishes

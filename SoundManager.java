@@ -174,11 +174,14 @@ public final class SoundManager {
             try {
                 String uri = mp3.getAbsolutePath().replace("\\", "/");
                 String command = "Add-Type -AssemblyName presentationCore; "
-                        + "$player = New-Object System.Windows.Media.MediaPlayer; "
-                        + "$player.Volume = 0.25; "
-                        + "$player.Open([uri]'file:///" + uri + "'); "
-                        + "$player.Play(); "
-                        + "while ($true) { Start-Sleep -Seconds 1 }";
+                    + "$player = New-Object System.Windows.Media.MediaPlayer; "
+                    + "$player.Volume = 0.25; "
+                    + "Register-ObjectEvent -InputObject $player -EventName MediaEnded "
+                    + "-Action { $player.Position = [TimeSpan]::Zero; $player.Play() } "
+                    + "| Out-Null; "
+                    + "$player.Open([uri]'file:///" + uri + "'); "
+                    + "$player.Play(); "
+                    + "while ($true) { Start-Sleep -Seconds 1 }";
                 ProcessBuilder builder = new ProcessBuilder(
                         "powershell",
                         "-NoProfile",
