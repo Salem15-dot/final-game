@@ -36,6 +36,7 @@ public final class SoundManager {
     private static final Map<String, Long> LAST_PLAYED_MS = new ConcurrentHashMap<>();
 
     private static Clip musicClip;
+    private static volatile Process musicProcess;
     private static boolean initialized = false;
 
     private SoundManager() { }
@@ -159,15 +160,42 @@ public final class SoundManager {
         if (musicClip != null && musicClip.isRunning()) return;
 
         Clip clip = CLIPS.get(SND_MUSIC);
-        if (clip == null) {
-            System.out.println("[SOUND] No music — convert "
-                + "assets/battleThemeA.mp3 to assets/battleThemeA.wav");
+        if (clip != null) {
+            applyGain(clip, -10.0f);
+            clip.setFramePosition(0);
+            clip.loop(Clip.LOOP_CONTINUOUSLY);
+            musicClip = clip;
             return;
         }
-        applyGain(clip, -10.0f);
-        clip.setFramePosition(0);
-        clip.loop(Clip.LOOP_CONTINUOUSLY);
-        musicClip = clip;
+
+        // WAV not found/loaded — try MP3 fallback via PowerShell MediaPlayer
+        File mp3 = ASSET_ROOT.resolve("battleThemeA.mp3").toFile();
+        if (mp3.exists()) {
+            try {
+                String uri = mp3.getAbsolutePath().replace("\\", "/");
+                String command = "Add-Type -AssemblyName presentationCore; "
+                        + "$player = New-Object System.Windows.Media.MediaPlayer; "
+                        + "$player.Volume = 0.25; "
+                        + "$player.Open([uri]'file:///" + uri + "'); "
+                        + "$player.Play(); "
+                        + "while ($true) { Start-Sleep -Seconds 1 }";
+                ProcessBuilder builder = new ProcessBuilder(
+                        "powershell",
+                        "-NoProfile",
+                        "-WindowStyle", "Hidden",
+                        "-Command",
+                        command
+                );
+                builder.redirectErrorStream(true);
+                musicProcess = builder.start();
+                System.out.println("[SOUND] Playing MP3 fallback: " + mp3.getName());
+                return;
+            } catch (Exception ignored) {
+                // fall through — we will print missing message below
+            }
+        }
+
+        System.out.println("[SOUND] No music ? convert assets/battleThemeA.mp3 to assets/battleThemeA.wav");
     }
 
     public static void stopMusic() {
@@ -177,6 +205,12 @@ public final class SoundManager {
                 musicClip.setFramePosition(0);
             } catch (Exception ignored) { }
             musicClip = null;
+        }
+        if (musicProcess != null) {
+            try {
+                musicProcess.destroy();
+            } catch (Exception ignored) { }
+            musicProcess = null;
         }
     }
 
