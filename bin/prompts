@@ -523,6 +523,10 @@ SPACE on the title starts the game.
 Mouse clicks on the How-to-play button open a help dialog.
 Kept victory handling intact.
 
+Prompt 19 : Highest score text is overlaying with the title and press space  thing, make them good looking and correct without covering each other like this. Also Display current enemiesKilled in HUD or end screens, make it seen somewhere in the UI even during the game (not same place as it is at first in the first screen with the Title and so but somewhere at top left or right without overlaying with other boxes and texts and things so that player can see it during the game and chalange hisself) 
+
+
+Results : High Score shown in a small top-right box (no overlap). Compiled and ran MethodTester — all tests passed
 
 
  

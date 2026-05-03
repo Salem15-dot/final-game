@@ -203,26 +203,54 @@ public class GameView {
         }
 
         private void drawTitleScreen(Graphics2D g2d) {
-            drawDarkOverlay(g2d, "BRAWLER ARENA");
+            // Full-screen dark backdrop
+            Composite oldComp = g2d.getComposite();
+            g2d.setColor(new Color(0, 0, 0, 180));
+            g2d.fillRect(0, 0, getWidth(), getHeight());
+
+            // Title (large, centered higher)
+            String title = "BRAWLER ARENA";
+            g2d.setColor(Color.WHITE);
+            g2d.setFont(new Font("Arial", Font.BOLD, 56));
+            FontMetrics titleFm = g2d.getFontMetrics();
+            int titleX = (getWidth() - titleFm.stringWidth(title)) / 2;
+            int titleY = (getHeight() / 2) - 60;
+            g2d.drawString(title, titleX, titleY);
+
+            // Subtitle / prompt
             String prompt = "Press SPACE to start";
-            g2d.setFont(new Font("Arial", Font.BOLD, 22));
+            g2d.setFont(new Font("Arial", Font.PLAIN, 22));
             FontMetrics fm = g2d.getFontMetrics();
             int promptX = (getWidth() - fm.stringWidth(prompt)) / 2;
-            g2d.drawString(prompt, promptX, getHeight() / 2 + 30);
+            int promptY = titleY + 54;
+            g2d.drawString(prompt, promptX, promptY);
 
-            // High score
-            String hs = "High Score: " + model.getHighScore();
-            g2d.setFont(new Font("Arial", Font.PLAIN, 14));
-            int hsX = (getWidth() - g2d.getFontMetrics().stringWidth(hs)) / 2;
-            g2d.drawString(hs, hsX, getHeight() / 2 + 20);
-
-            // How to play button
+            // How to play button (centered below prompt)
             int buttonW = 220;
             int buttonH = 40;
             int bx = (getWidth() - buttonW) / 2;
-            int by = getHeight() / 2 + 70;
+            int by = promptY + 30;
             howButtonBounds = new Rectangle(bx, by, buttonW, buttonH);
             drawButton(g2d, howButtonBounds, "How to play");
+
+            // High score box at top-right to avoid overlapping central text
+            String hs = "High Score: " + model.getHighScore();
+            int pad = 12;
+            g2d.setFont(new Font("Arial", Font.BOLD, 16));
+            FontMetrics hfm = g2d.getFontMetrics();
+            int boxW = hfm.stringWidth(hs) + pad * 2;
+            int boxH = 28;
+            int boxX = getWidth() - boxW - 20;
+            int boxY = 20;
+            g2d.setColor(new Color(255, 255, 255, 220));
+            g2d.fillRoundRect(boxX, boxY, boxW, boxH, 10, 10);
+            g2d.setColor(Color.BLACK);
+            g2d.drawRoundRect(boxX, boxY, boxW, boxH, 10, 10);
+            g2d.setColor(Color.BLACK);
+            int textX = boxX + pad;
+            int textY = boxY + ((boxH + hfm.getAscent()) / 2) - 4;
+            g2d.drawString(hs, textX, textY);
+            g2d.setComposite(oldComp);
         }
 
         private void drawDarkOverlay(Graphics2D g2d, String message) {
@@ -572,6 +600,12 @@ public class GameView {
                 
                 // Health bar (top-left, below lives)
                 drawHealthBar(g, 20, 60, 200, 20, player.getHp(), player.getMaxHp(), "HP: ");
+                
+                // Enemies killed display (below health)
+                g.setFont(new Font("Arial", Font.PLAIN, 14));
+                g.setColor(Color.WHITE);
+                String kills = "Kills: " + model.getEnemiesKilled();
+                g.drawString(kills, 20, 100);
             }
         }
         
