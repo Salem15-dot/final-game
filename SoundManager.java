@@ -2,9 +2,7 @@ import javax.sound.sampled.AudioFormat;
 import javax.sound.sampled.AudioInputStream;
 import javax.sound.sampled.AudioSystem;
 import javax.sound.sampled.Clip;
-import javax.sound.sampled.DataLine;
 import javax.sound.sampled.FloatControl;
-import javax.sound.sampled.LineEvent;
 import java.io.File;
 import java.nio.file.Path;
 import java.util.HashMap;
@@ -12,150 +10,160 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * SoundManager
+ * SoundManager — paths now match the EXACT files in your assets folder.
  *
- * What changed and why (read this if you ever need to debug audio again):
+ * Why nothing was playing before:
+ *   - Code was looking for "battle/swing.wav" but your folder only has
+ *     sword-unsheathe2/3/4/5.wav. Same for magic1.wav, spell.wav, etc.
+ *   - Music was looking for battleThemeA.wav but you only have .mp3.
+ *   - When a file is missing, the old code skipped silently — so you had
+ *     no idea most of the events were silent.
  *
- * 1. CLIPS ARE PRE-LOADED.
- *    The old version called AudioSystem.getClip() and decoded the WAV from
- *    disk EVERY time a sound played. That decode + line-open takes 50-200 ms,
- *    which is exactly the "lag on every attack" you saw. Now every clip is
- *    loaded once at startup into a HashMap. Playing a sound is just:
- *        clip.stop(); clip.setFramePosition(0); clip.start();
- *    which costs effectively zero milliseconds.
- *
- * 2. NO MORE BACKGROUND THREADS.
- *    The old version started a daemon thread for every single sound effect
- *    that polled clip.isRunning() every 25 ms. Twenty enemies attacking =
- *    twenty new threads. Now there are zero threads. The Clip object handles
- *    its own lifecycle.
- *
- * 3. NO MORE POWERSHELL.
- *    The old version spawned a PowerShell process to play the MP3 background
- *    music. When the JVM exited, that process became an orphan and kept
- *    playing forever. That is your "music plays after window closes" bug.
- *    Now the music is a Clip just like everything else.
- *
- *    REQUIREMENT: convert battleThemeA.mp3 -> battleThemeA.wav once, drop the
- *    .wav into assets/. Java's built-in audio doesn't support MP3 without an
- *    extra library; WAV is universal. Any free converter works (Audacity,
- *    online converter, ffmpeg).
- *
- * 4. SHUTDOWN HOOK.
- *    Even if windowClosing never fires (e.g. JVM is killed externally), the
- *    shutdown hook stops every clip and releases every audio line.
+ * What changed:
+ *   - All paths now match real files I can see in your screenshot.
+ *   - On startup, this prints "[SOUND] OK <file>" for everything that
+ *     loaded, and "[SOUND] MISSING <file>" / "[SOUND] FAILED <file>"
+ *     for anything that didn't. You can see what's working in the terminal.
+ *   - Music: still requires a .wav. If battleThemeA.wav is missing, the
+ *     game just runs silent for music (no crash). Convert your .mp3 with
+ *     Audacity or convertio.co once and drop it in assets/.
  */
 public final class SoundManager {
 
     private static final Path ASSET_ROOT = Path.of("assets");
 
-    /** Pre-loaded clips, keyed by relative path under assets/. */
     private static final Map<String, Clip> CLIPS = new HashMap<>();
-
-    /**
-     * Per-event throttle. Some events (player walking, enemy attacking) can
-     * fire many times per second. We limit how often a given key plays.
-     */
     private static final Map<String, Long> LAST_PLAYED_MS = new ConcurrentHashMap<>();
 
-    /** The single looping background-music clip, or null if not loaded. */
     private static Clip musicClip;
-
-    /** True once init() has run. */
     private static boolean initialized = false;
 
-    private SoundManager() {
-    }
+    private SoundManager() { }
 
     // ─────────────────────────────────────────────────────────────────────
-    // Initialization — called lazily the first time anything plays.
-    // Pre-loads every sound file into memory so playback is instant.
+    // Sound files mapped to events. Every path here is taken straight from
+    // your assets folder screenshot. If you add or rename files, update
+    // these constants and that's the only change needed.
+    // ─────────────────────────────────────────────────────────────────────
+
+    // Player
+    private static final String SND_PLAYER_WALK   = "walking voices/slime1.wav";       // if missing, walking is silent
+    private static final String SND_PLAYER_ATTACK = "battle/sword-unsheathe2.wav";     // sword swing
+    private static final String SND_PLAYER_HURT   = "battle/sword-unsheathe3.wav";
+
+    // Pickups / UI
+    private static final String SND_COIN          = "battle/sword-unsheathe4.wav";
+    private static final String SND_POWERUP       = "battle/sword-unsheathe5.wav";
+    private static final String SND_LEVEL_UP      = "battle/sword-unsheathe5.wav";     // reuse — no spell.wav
+    private static final String SND_PURCHASE      = "battle/sword-unsheathe2.wav";
+
+    // Goblin
+    private static final String SND_GOBLIN_ATTACK = "goblin-voices/goblin-attack.wav";
+    private static final String SND_GOBLIN_HURT   = "goblin-voices/gobline-reciving-damage.wav";
+    private static final String SND_GOBLIN_DEATH  = "goblin-voices/gobline-dying.wav";
+
+    // Wolf
+    private static final String SND_WOLF_ATTACK   = "wolf-voics/wolf-attack.wav";
+    private static final String SND_WOLF_HURT     = "wolf-voics/wolf-recive-damage.wav";
+    private static final String SND_WOLF_DEATH    = "wolf-voics/wolf-attack2.wav";     // no dedicated death — reuse attack2
+
+    // Rogue
+    private static final String SND_ROGUE_ATTACK  = "rogue/roguer-attack.wav";
+    private static final String SND_ROGUE_HURT    = "rogue/roguer-recive-damage.wav";
+    private static final String SND_ROGUE_DEATH   = "rogue/rogue-die.wav";
+
+    // Background music — must be .wav. Convert battleThemeA.mp3 → .wav once.
+    private static final String SND_MUSIC         = "battleThemeA.wav";
+
+    // ─────────────────────────────────────────────────────────────────────
+    // Init — preload every clip ONCE. Prints a diagnostic line per file so
+    // you can see what worked and what didn't in the console.
     // ─────────────────────────────────────────────────────────────────────
     private static synchronized void init() {
         if (initialized) return;
         initialized = true;
 
-        // Player
-        preload("walking voices/slime1.wav");
-        preload("battle/swing.wav");
-        preload("battle/sword-unsheathe.wav");
-        preload("battle/sword-unsheathe2.wav");
-        preload("battle/sword-unsheathe3.wav");
-        preload("battle/magic1.wav");
-        preload("battle/spell.wav");
+        System.out.println("[SOUND] Loading audio from: " + ASSET_ROOT.toAbsolutePath());
 
-        // Goblin
-        preload("goblin-voices/goblin-attack.wav");
-        preload("goblin-voices/gobline-reciving-damage.wav");
-        preload("goblin-voices/gobline-dying.wav");
+        String[] paths = {
+            SND_PLAYER_WALK, SND_PLAYER_ATTACK, SND_PLAYER_HURT,
+            SND_COIN, SND_POWERUP, SND_LEVEL_UP, SND_PURCHASE,
+            SND_GOBLIN_ATTACK, SND_GOBLIN_HURT, SND_GOBLIN_DEATH,
+            SND_WOLF_ATTACK, SND_WOLF_HURT, SND_WOLF_DEATH,
+            SND_ROGUE_ATTACK, SND_ROGUE_HURT, SND_ROGUE_DEATH,
+            SND_MUSIC
+        };
 
-        // Wolf
-        preload("wolf-voics/wolf-attack.wav");
-        preload("wolf-voics/wolf-attack2.wav");
-        preload("wolf-voics/wolf-recive-damage.wav");
+        for (String p : paths) {
+            preload(p);
+        }
 
-        // Rogue
-        preload("rogue/roguer-attack.wav");
-        preload("rogue/roguer-recive-damage.wav");
-        preload("rogue/rogue-die.wav");
-
-        // Background music — must be WAV. If you only have battleThemeA.mp3,
-        // convert it to WAV (Audacity / online converter / ffmpeg) and drop
-        // battleThemeA.wav alongside it in assets/.
-        preload("battleThemeA.wav");
-
-        // Make sure audio shuts down even if the window is killed weirdly.
-        Runtime.getRuntime().addShutdownHook(new Thread(SoundManager::shutdown,
-                "SoundManager-Shutdown"));
+        Runtime.getRuntime().addShutdownHook(
+            new Thread(SoundManager::shutdown, "SoundManager-Shutdown"));
     }
 
-    /** Try to load one clip; if the file is missing, just skip it silently. */
+    /**
+     * Load one clip. Tries the simple path first (most WAVs work this way),
+     * and falls back to format conversion if the WAV has an unusual format
+     * like 24-bit or floating-point samples.
+     */
     private static void preload(String relativePath) {
         File file = ASSET_ROOT.resolve(relativePath).toFile();
         if (!file.exists()) {
-            // File missing on disk — skip without crashing the game.
+            System.out.println("[SOUND] MISSING " + relativePath);
             return;
         }
 
+        // Attempt 1 — simple direct open. Works for normal PCM WAVs.
+        try (AudioInputStream stream = AudioSystem.getAudioInputStream(file)) {
+            Clip clip = AudioSystem.getClip();
+            clip.open(stream);
+            CLIPS.put(relativePath, clip);
+            System.out.println("[SOUND] OK      " + relativePath);
+            return;
+        } catch (Exception simpleFail) {
+            // Fall through to attempt 2.
+        }
+
+        // Attempt 2 — convert to standard 16-bit PCM and try again.
         try (AudioInputStream raw = AudioSystem.getAudioInputStream(file)) {
-            AudioFormat sourceFormat = raw.getFormat();
-
-            // Convert anything weird to standard signed 16-bit PCM so it will
-            // open as a Clip on every platform.
-            AudioFormat targetFormat = new AudioFormat(
-                    AudioFormat.Encoding.PCM_SIGNED,
-                    sourceFormat.getSampleRate(),
-                    16,
-                    sourceFormat.getChannels(),
-                    sourceFormat.getChannels() * 2,
-                    sourceFormat.getSampleRate(),
-                    false
+            AudioFormat src = raw.getFormat();
+            AudioFormat target = new AudioFormat(
+                AudioFormat.Encoding.PCM_SIGNED,
+                src.getSampleRate(),
+                16,
+                src.getChannels(),
+                src.getChannels() * 2,
+                src.getSampleRate(),
+                false
             );
-
-            try (AudioInputStream decoded =
-                         AudioSystem.getAudioInputStream(targetFormat, raw)) {
-                DataLine.Info info = new DataLine.Info(Clip.class, targetFormat);
-                Clip clip = (Clip) AudioSystem.getLine(info);
+            try (AudioInputStream decoded = AudioSystem.getAudioInputStream(target, raw)) {
+                Clip clip = AudioSystem.getClip();
                 clip.open(decoded);
                 CLIPS.put(relativePath, clip);
+                System.out.println("[SOUND] OK*     " + relativePath + " (after format conversion)");
+                return;
             }
-        } catch (Exception e) {
-            // Format not supported / IO error — skip silently rather than
-            // crashing the whole game.
-            System.err.println("SoundManager: could not load " + relativePath
-                    + " (" + e.getClass().getSimpleName() + ")");
+        } catch (Exception convertFail) {
+            System.out.println("[SOUND] FAILED  " + relativePath
+                + " — " + convertFail.getClass().getSimpleName()
+                + ": " + convertFail.getMessage());
         }
     }
 
     // ─────────────────────────────────────────────────────────────────────
-    // Music — single looping clip.
+    // Music
     // ─────────────────────────────────────────────────────────────────────
     public static void playMusic() {
         init();
         if (musicClip != null && musicClip.isRunning()) return;
 
-        Clip clip = CLIPS.get("battleThemeA.wav");
-        if (clip == null) return;        // file missing or not WAV — skip
+        Clip clip = CLIPS.get(SND_MUSIC);
+        if (clip == null) {
+            System.out.println("[SOUND] No music — convert "
+                + "assets/battleThemeA.mp3 to assets/battleThemeA.wav");
+            return;
+        }
         applyGain(clip, -10.0f);
         clip.setFramePosition(0);
         clip.loop(Clip.LOOP_CONTINUOUSLY);
@@ -167,113 +175,80 @@ public final class SoundManager {
             try {
                 musicClip.stop();
                 musicClip.setFramePosition(0);
-            } catch (Exception ignored) {
-            }
+            } catch (Exception ignored) { }
             musicClip = null;
         }
     }
 
-    /** Called by the JVM shutdown hook — stops EVERY clip. */
     public static void shutdown() {
         stopMusic();
         for (Clip c : CLIPS.values()) {
-            try {
-                c.stop();
-                c.close();
-            } catch (Exception ignored) {
-            }
+            try { c.stop(); c.close(); } catch (Exception ignored) { }
         }
         CLIPS.clear();
     }
 
     // ─────────────────────────────────────────────────────────────────────
-    // Public per-event helpers. Each event has its own throttle window so a
-    // sound never plays twice in a row from accidental double-fires.
+    // Public per-event helpers
     // ─────────────────────────────────────────────────────────────────────
 
     public static void playPlayerWalk() {
-        // Walking fires constantly while held; throttle to one footstep
-        // every 320 ms so it sounds like steps, not a buzz.
         if (!throttle("playerWalk", 320)) return;
-        play("walking voices/slime1.wav", -18.0f);
+        play(SND_PLAYER_WALK, -18.0f);
     }
-
     public static void playPlayerAttack() {
         if (!throttle("playerAttack", 250)) return;
-        play("battle/swing.wav", -8.0f);
+        play(SND_PLAYER_ATTACK, -8.0f);
     }
-
     public static void playPlayerHurt() {
         if (!throttle("playerHurt", 300)) return;
-        play("battle/sword-unsheathe3.wav", -10.0f);
+        play(SND_PLAYER_HURT, -10.0f);
     }
-
     public static void playCoin() {
         if (!throttle("coin", 80)) return;
-        play("battle/sword-unsheathe.wav", -8.0f);
+        play(SND_COIN, -8.0f);
     }
-
     public static void playPowerUp() {
         if (!throttle("powerUp", 200)) return;
-        play("battle/magic1.wav", -8.0f);
+        play(SND_POWERUP, -8.0f);
     }
-
-    public static void playLevelUp() {
-        play("battle/spell.wav", -6.0f);
-    }
-
+    public static void playLevelUp()  { play(SND_LEVEL_UP, -6.0f); }
     public static void playPurchase() {
         if (!throttle("purchase", 150)) return;
-        play("battle/sword-unsheathe2.wav", -8.0f);
+        play(SND_PURCHASE, -8.0f);
     }
 
     public static void playGoblinAttack() {
         if (!throttle("goblinAttack", 400)) return;
-        play("goblin-voices/goblin-attack.wav", -6.0f);
+        play(SND_GOBLIN_ATTACK, -6.0f);
     }
-
     public static void playGoblinDamage() {
         if (!throttle("goblinDamage", 250)) return;
-        play("goblin-voices/gobline-reciving-damage.wav", -6.0f);
+        play(SND_GOBLIN_HURT, -6.0f);
     }
-
-    public static void playGoblinDeath() {
-        play("goblin-voices/gobline-dying.wav", -6.0f);
-    }
+    public static void playGoblinDeath() { play(SND_GOBLIN_DEATH, -6.0f); }
 
     public static void playWolfAttack() {
         if (!throttle("wolfAttack", 400)) return;
-        play("wolf-voics/wolf-attack.wav", -6.0f);
+        play(SND_WOLF_ATTACK, -6.0f);
     }
-
     public static void playWolfDamage() {
         if (!throttle("wolfDamage", 250)) return;
-        play("wolf-voics/wolf-recive-damage.wav", -6.0f);
+        play(SND_WOLF_HURT, -6.0f);
     }
-
-    public static void playWolfDeath() {
-        play("wolf-voics/wolf-attack2.wav", -6.0f);
-    }
+    public static void playWolfDeath() { play(SND_WOLF_DEATH, -6.0f); }
 
     public static void playRogueAttack() {
         if (!throttle("rogueAttack", 400)) return;
-        // Rogue uses a sword — reuse the metal sword swing for the swing,
-        // and the rogue's own voice if present. We pick the sword swing
-        // here because you said the rogue should sound metallic.
-        play("rogue/roguer-attack.wav", -6.0f);
+        play(SND_ROGUE_ATTACK, -6.0f);
     }
-
     public static void playRogueDamage() {
         if (!throttle("rogueDamage", 250)) return;
-        play("rogue/roguer-recive-damage.wav", -6.0f);
+        play(SND_ROGUE_HURT, -6.0f);
     }
+    public static void playRogueDeath() { play(SND_ROGUE_DEATH, -6.0f); }
 
-    public static void playRogueDeath() {
-        play("rogue/rogue-die.wav", -6.0f);
-    }
-
-    // Legacy aliases used elsewhere in the codebase — kept so we don't have
-    // to touch GameModel / GameController.
+    // Legacy aliases used by older code.
     public static void playHit()        { playPlayerAttack(); }
     public static void playHurt()       { playPlayerHurt(); }
     public static void playEnemyDown()  { /* per-enemy death sounds handle this */ }
@@ -282,22 +257,14 @@ public final class SoundManager {
     // Internals
     // ─────────────────────────────────────────────────────────────────────
 
-    /** True if we should play this event right now; false if too soon. */
     private static boolean throttle(String key, long minimumDelayMs) {
         long now = System.currentTimeMillis();
         Long previous = LAST_PLAYED_MS.get(key);
-        if (previous != null && now - previous < minimumDelayMs) {
-            return false;
-        }
+        if (previous != null && now - previous < minimumDelayMs) return false;
         LAST_PLAYED_MS.put(key, now);
         return true;
     }
 
-    /**
-     * Play a one-shot sound. Just rewinds and starts the pre-loaded clip —
-     * no file I/O, no thread, no allocation. This is the whole point of the
-     * rewrite.
-     */
     private static void play(String relativePath, float gainDb) {
         init();
         Clip clip = CLIPS.get(relativePath);
@@ -307,22 +274,16 @@ public final class SoundManager {
             clip.setFramePosition(0);
             applyGain(clip, gainDb);
             clip.start();
-        } catch (Exception ignored) {
-            // Some Clip implementations throw if start() races with stop();
-            // ignore — next call will recover.
-        }
+        } catch (Exception ignored) { }
     }
 
     private static void applyGain(Clip clip, float gainDb) {
         try {
             if (clip.isControlSupported(FloatControl.Type.MASTER_GAIN)) {
-                FloatControl control = (FloatControl)
-                        clip.getControl(FloatControl.Type.MASTER_GAIN);
-                float value = Math.max(control.getMinimum(),
-                        Math.min(control.getMaximum(), gainDb));
-                control.setValue(value);
+                FloatControl c = (FloatControl) clip.getControl(FloatControl.Type.MASTER_GAIN);
+                float v = Math.max(c.getMinimum(), Math.min(c.getMaximum(), gainDb));
+                c.setValue(v);
             }
-        } catch (Exception ignored) {
-        }
+        } catch (Exception ignored) { }
     }
 }

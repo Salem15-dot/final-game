@@ -588,3 +588,7 @@ Load each WAV once at startup into a Clip, keep it in a map. Playing = clip.stop
 For the MP3 background: convert to WAV (or load with a decoder). Easiest: convert battleThemeA.mp3 → battleThemeA.wav once, drop it in assets. Then load it like every other clip and use Clip.loop(LOOP_CONTINUOUSLY). Kill the PowerShell hack entirely.
 Add a JVM shutdown hook so if the window closes any other way, audio still gets killed.
 Here's the complete replacement SoundManager.java:" 
+
+
+
+Results : No sound is playing no, not even the music, here are my codes and files i belive it is naming and pathing issues : 
