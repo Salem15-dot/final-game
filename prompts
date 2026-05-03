@@ -575,4 +575,16 @@ Results 2 : No voice or sound or music is working except the walking sound ! and
     Results 4: you don't understand, game is still lagging everytime i attack or the enemies attack or so, which i think everytime a sound from the goblin or me or others try to run, so there are errors with how to run these ones, also methodes seems like delyaing or something becsouse voices delayed . make sure no error happens . This error comes from the fact that the sounds seems to run too many times since the rigger tiggers as long as it is true which can last for seconds sometimes which is very many times if it runs on frams (milli seconds! ) so there are laggs, make sounds riggers only once and only for certin events and not during the them! 
 
 
-    prompt 5 : Still so many lagges and the sound of the music is now playing even when closing the window
+    prompt 5 : Still so many lagges and the sound of the music is now playing even when closing the window. I used another external AI and that is what he said: 
+    "Real root causes (looking at your SoundManager.java):
+Music keeps playing after window close. You're spawning a PowerShell process to play the MP3. When the JVM exits, that PowerShell process is orphaned — Windows doesn't kill it. That's why the music keeps playing forever. The windowClosing listener calls stopMusic(), but if anything else exits first or the listener doesn't fire, the process survives.
+
+Lag on every attack. Every time a sound plays you call AudioSystem.getClip(), decode the file fresh, open it, then start a daemon thread that polls clip.isRunning() every 25ms. Decoding a WAV from disk and opening a new audio line takes 50–200ms. That's the lag. Then you spawn a thread per sound. Twenty enemies attacking = twenty file reads + twenty threads.
+
+MP3 won't play through Java's default audio system anyway. AudioSystem.getAudioInputStream doesn't support MP3 out of the box. That's likely why the bash sound stuff works only intermittently and why the workaround was a PowerShell process.
+The fix is structural, not patch-y:
+
+Load each WAV once at startup into a Clip, keep it in a map. Playing = clip.stop(); clip.setFramePosition(0); clip.start();. No file I/O, no threads, no lag.
+For the MP3 background: convert to WAV (or load with a decoder). Easiest: convert battleThemeA.mp3 → battleThemeA.wav once, drop it in assets. Then load it like every other clip and use Clip.loop(LOOP_CONTINUOUSLY). Kill the PowerShell hack entirely.
+Add a JVM shutdown hook so if the window closes any other way, audio still gets killed.
+Here's the complete replacement SoundManager.java:" 
