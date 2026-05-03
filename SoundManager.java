@@ -1,138 +1,224 @@
 import javax.sound.sampled.AudioFormat;
+import javax.sound.sampled.AudioInputStream;
 import javax.sound.sampled.AudioSystem;
-import javax.sound.sampled.SourceDataLine;
+import javax.sound.sampled.Clip;
+import javax.sound.sampled.FloatControl;
+import java.io.File;
+import java.nio.file.Path;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 public final class SoundManager {
-    private static final AudioFormat FORMAT = new AudioFormat(44100f, 16, 1, true, false);
-    private static volatile boolean musicRunning = false;
-    private static Thread musicThread;
+    private static final Path ASSET_ROOT = Path.of("assets");
+    private static final Map<String, Long> LAST_PLAYED_MS = new ConcurrentHashMap<>();
+    private static volatile Process musicProcess;
 
     private SoundManager() {
     }
 
     public static void playMusic() {
-        if (musicRunning) {
+        if (musicProcess != null && musicProcess.isAlive()) {
             return;
         }
-        musicRunning = true;
-        musicThread = new Thread(() -> {
-            int[] melody = {262, 330, 392, 330, 294, 349, 440, 392};
-            int[] bass = {131, 131, 147, 147, 165, 165, 147, 147};
-            while (musicRunning) {
-                for (int i = 0; i < melody.length && musicRunning; i++) {
-                    playChord(melody[i], bass[i], 180, 0.18);
-                }
-            }
-        }, "BrawlerArena-Music");
-        musicThread.setDaemon(true);
-        musicThread.start();
+
+        File file = ASSET_ROOT.resolve("battleThemeA.mp3").toFile();
+        if (!file.exists()) {
+            return;
+        }
+
+        try {
+            String uri = file.getAbsolutePath().replace("\\", "/");
+            String command = "Add-Type -AssemblyName presentationCore; "
+                    + "$player = New-Object System.Windows.Media.MediaPlayer; "
+                    + "$player.Volume = 0.25; "
+                    + "$player.Open([uri]'file:///" + uri + "'); "
+                    + "$player.Play(); "
+                    + "while ($true) { Start-Sleep -Seconds 1 }";
+            ProcessBuilder builder = new ProcessBuilder(
+                    "powershell",
+                    "-NoProfile",
+                    "-WindowStyle", "Hidden",
+                    "-Command",
+                    command
+            );
+            builder.redirectErrorStream(true);
+            musicProcess = builder.start();
+        } catch (Exception ignored) {
+            stopMusic();
+        }
     }
 
     public static void stopMusic() {
-        musicRunning = false;
+        if (musicProcess != null) {
+            musicProcess.destroy();
+            musicProcess = null;
+        }
     }
 
-    public static void playHit() {
-        playToneAsync(720, 55, 0.20);
+    public static void playPlayerWalk() {
+        if (!throttle("playerWalk", 260)) {
+            return;
+        }
+        play("walking voices/slime1.wav", -18.0f);
     }
 
-    public static void playHurt() {
-        playToneAsync(180, 120, 0.18);
+    public static void playPlayerAttack() {
+        play("battle/swing.wav", -8.0f);
+    }
+
+    public static void playPlayerHurt() {
+        play("battle/sword-unsheathe3.wav", -10.0f);
     }
 
     public static void playCoin() {
-        playToneAsync(1040, 90, 0.16);
+        play("battle/sword-unsheathe.wav", -8.0f);
     }
 
     public static void playPowerUp() {
-        playToneAsync(880, 120, 0.18);
-        playToneAsync(1175, 90, 0.14);
+        play("battle/magic1.wav", -8.0f);
+    }
+
+    public static void playLevelUp() {
+        play("battle/spell.wav", -8.0f);
     }
 
     public static void playPurchase() {
-        playToneAsync(523, 90, 0.14);
-        playToneAsync(659, 90, 0.14);
+        play("battle/sword-unsheathe2.wav", -8.0f);
+    }
+
+    public static void playGoblinAttack() {
+        play("goblin-voices/goblin-attack.wav", -6.0f);
+    }
+
+    public static void playGoblinDamage() {
+        play("goblin-voices/gobline-reciving-damage.wav", -6.0f);
+    }
+
+    public static void playGoblinDeath() {
+        play("goblin-voices/gobline-dying.wav", -6.0f);
+    }
+
+    public static void playWolfAttack() {
+        play("wolf-voics/wolf-attack.wav", -6.0f);
+    }
+
+    public static void playWolfDamage() {
+        play("wolf-voics/wolf-recive-damage.wav", -6.0f);
+    }
+
+    public static void playWolfDeath() {
+        play("wolf-voics/wolf-attack2.wav", -6.0f);
+    }
+
+    public static void playRogueAttack() {
+        play("rogue/roguer-attack.wav", -6.0f);
+    }
+
+    public static void playRogueDamage() {
+        play("rogue/roguer-recive-damage.wav", -6.0f);
+    }
+
+    public static void playRogueDeath() {
+        play("rogue/rogue-die.wav", -6.0f);
+    }
+
+    public static void playHit() {
+        playPlayerAttack();
+    }
+
+    public static void playHurt() {
+        playPlayerHurt();
     }
 
     public static void playEnemyDown() {
-        playToneAsync(220, 140, 0.18);
-        playToneAsync(110, 120, 0.14);
+        // Legacy no-op; enemy-specific death sounds are handled per enemy type.
     }
 
-    private static void playToneAsync(int frequencyHz, int durationMs, double volume) {
-        Thread thread = new Thread(() -> playTone(frequencyHz, durationMs, volume), "BrawlerArena-SFX");
-        thread.setDaemon(true);
-        thread.start();
-    }
-
-    private static void playChord(int frequencyA, int frequencyB, int durationMs, double volume) {
-        byte[] buffer = createChordBuffer(frequencyA, frequencyB, durationMs, volume);
-        playBuffer(buffer);
-    }
-
-    private static void playTone(int frequencyHz, int durationMs, double volume) {
-        byte[] buffer = createToneBuffer(frequencyHz, durationMs, volume);
-        playBuffer(buffer);
-    }
-
-    private static byte[] createToneBuffer(int frequencyHz, int durationMs, double volume) {
-        int sampleCount = (int) (FORMAT.getSampleRate() * durationMs / 1000.0);
-        byte[] buffer = new byte[sampleCount * 2];
-        for (int i = 0; i < sampleCount; i++) {
-            double time = i / FORMAT.getSampleRate();
-            double envelope = 1.0;
-            if (i < 40) {
-                envelope = i / 40.0;
-            } else if (i > sampleCount - 80) {
-                envelope = Math.max(0.0, (sampleCount - i) / 80.0);
-            }
-            short sample = (short) (Math.sin(2.0 * Math.PI * frequencyHz * time) * Short.MAX_VALUE * volume * envelope);
-            buffer[i * 2] = (byte) (sample & 0xFF);
-            buffer[i * 2 + 1] = (byte) ((sample >> 8) & 0xFF);
+    private static boolean throttle(String key, long minimumDelayMs) {
+        long now = System.currentTimeMillis();
+        Long previous = LAST_PLAYED_MS.get(key);
+        if (previous != null && now - previous < minimumDelayMs) {
+            return false;
         }
-        return buffer;
+        LAST_PLAYED_MS.put(key, now);
+        return true;
     }
 
-    private static byte[] createChordBuffer(int frequencyA, int frequencyB, int durationMs, double volume) {
-        int sampleCount = (int) (FORMAT.getSampleRate() * durationMs / 1000.0);
-        byte[] buffer = new byte[sampleCount * 2];
-        for (int i = 0; i < sampleCount; i++) {
-            double time = i / FORMAT.getSampleRate();
-            double envelope = 1.0;
-            if (i < 40) {
-                envelope = i / 40.0;
-            } else if (i > sampleCount - 80) {
-                envelope = Math.max(0.0, (sampleCount - i) / 80.0);
-            }
-            double wave = (Math.sin(2.0 * Math.PI * frequencyA * time) + Math.sin(2.0 * Math.PI * frequencyB * time)) / 2.0;
-            short sample = (short) (wave * Short.MAX_VALUE * volume * envelope);
-            buffer[i * 2] = (byte) (sample & 0xFF);
-            buffer[i * 2 + 1] = (byte) ((sample >> 8) & 0xFF);
+    private static void play(String relativePath, float gainDb) {
+        Clip clip = openClip(relativePath);
+        if (clip == null) {
+            return;
         }
-        return buffer;
-    }
 
-    private static void playBuffer(byte[] buffer) {
-        SourceDataLine line = null;
+        applyGain(clip, gainDb);
         try {
-            line = AudioSystem.getSourceDataLine(FORMAT);
-            line.open(FORMAT);
-            line.start();
-            line.write(buffer, 0, buffer.length);
-            line.drain();
+            clip.start();
         } catch (Exception ignored) {
-            // Audio output is optional; silently skip if unavailable.
-        } finally {
-            if (line != null) {
-                try {
-                    line.stop();
-                } catch (Exception ignored) {
+            closeClip(clip);
+            return;
+        }
+
+        Thread cleanup = new Thread(() -> {
+            try {
+                while (clip.isRunning()) {
+                    Thread.sleep(25);
                 }
-                try {
-                    line.close();
-                } catch (Exception ignored) {
-                }
+            } catch (Exception ignored) {
+            } finally {
+                closeClip(clip);
             }
+        }, "SoundManager-Cleanup");
+        cleanup.setDaemon(true);
+        cleanup.start();
+    }
+
+    private static Clip openClip(String relativePath) {
+        File file = ASSET_ROOT.resolve(relativePath).toFile();
+        if (!file.exists()) {
+            return null;
+        }
+
+        try (AudioInputStream source = AudioSystem.getAudioInputStream(file)) {
+            AudioFormat sourceFormat = source.getFormat();
+            AudioFormat targetFormat = new AudioFormat(
+                    AudioFormat.Encoding.PCM_SIGNED,
+                    sourceFormat.getSampleRate(),
+                    16,
+                    sourceFormat.getChannels(),
+                    sourceFormat.getChannels() * 2,
+                    sourceFormat.getSampleRate(),
+                    false
+            );
+
+            try (AudioInputStream decoded = AudioSystem.getAudioInputStream(targetFormat, source)) {
+                Clip clip = AudioSystem.getClip();
+                clip.open(decoded);
+                return clip;
+            }
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    private static void applyGain(Clip clip, float gainDb) {
+        try {
+            if (clip.isControlSupported(FloatControl.Type.MASTER_GAIN)) {
+                FloatControl control = (FloatControl) clip.getControl(FloatControl.Type.MASTER_GAIN);
+                float value = Math.max(control.getMinimum(), Math.min(control.getMaximum(), gainDb));
+                control.setValue(value);
+            }
+        } catch (Exception ignored) {
+        }
+    }
+
+    private static void closeClip(Clip clip) {
+        try {
+            clip.stop();
+        } catch (Exception ignored) {
+        }
+        try {
+            clip.close();
+        } catch (Exception ignored) {
         }
     }
 }

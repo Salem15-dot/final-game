@@ -155,20 +155,19 @@ public class GameModel {
             int actualDamage = ((Player) target).takeDamage(damage);
             if (actualDamage > 0) {
                 addFloatingText(target.getX() + target.getWidth() * 0.5, target.getY() - 10, "-" + actualDamage, Color.RED);
-                SoundManager.playHurt();
+                SoundManager.playPlayerHurt();
             }
         } else if (target instanceof Enemy) {
             int actualDamage = ((Enemy) target).takeDamage(damage);
             if (actualDamage > 0) {
                 addFloatingText(target.getX() + target.getWidth() * 0.5, target.getY() - 10, "-" + actualDamage, Color.GREEN);
-                SoundManager.playHit();
                 Enemy enemy = (Enemy) target;
                 if (enemy.isDead()) {
-                            // spawn money upon death (value by enemy type)
-                            int value = 1;
-                            if (enemy instanceof Wolf) value = 2;
-                            else if (enemy instanceof Rogue) value = 3;
-                            moneyList.add(new Money(enemy.getX(), enemy.getY(), value));
+                    // spawn money upon death (value by enemy type)
+                    int value = 1;
+                    if (enemy instanceof Wolf) value = 2;
+                    else if (enemy instanceof Rogue) value = 3;
+                    moneyList.add(new Money(enemy.getX(), enemy.getY(), value));
                     if (enemy instanceof Goblin) {
                         player.heal(3);
                     } else if (enemy instanceof Wolf) {
@@ -182,7 +181,6 @@ public class GameModel {
                         highScore = enemiesKilled;
                         saveHighScore();
                     }
-                    SoundManager.playEnemyDown();
                 }
             }
         }
@@ -218,6 +216,7 @@ public class GameModel {
             gameState = GameState.VICTORY;
             return;
         }
+        SoundManager.playLevelUp();
         startLevel(currentLevel + 1);
     }
 
@@ -620,6 +619,7 @@ public class GameModel {
             if (punchCooldownRemaining > 0) {
                 return;
             }
+            SoundManager.playPlayerAttack();
             state = PlayerState.PUNCH;
             attackFrameWindow = punchAttackWindowDefault;
             actionStateTimer = 220;
@@ -636,6 +636,7 @@ public class GameModel {
             if (kickCooldownRemaining > 0) {
                 return;
             }
+            SoundManager.playPlayerAttack();
             state = PlayerState.KICK;
             attackFrameWindow = kickAttackWindowDefault;
             actionStateTimer = 260;
@@ -924,6 +925,7 @@ public class GameModel {
                     attackActiveWindow = this.attackActiveWindowDefault > 0 ? this.attackActiveWindowDefault : 220;
                     attackCooldownRemaining = attackCooldown;
                     attackDelivered = false;
+                    onAttackStarted();
                     attackTriggered = true;
                 }
             } else {
@@ -966,8 +968,10 @@ public class GameModel {
                 hp = 0;
                 state = EnemyState.DEAD;
                 velocityX = 0;
+                onDeath();
             } else {
                 state = EnemyState.HURT;
+                onDamaged();
             }
             return damage;
         }
@@ -986,6 +990,15 @@ public class GameModel {
 
         public boolean isAttackActive() {
             return attackActiveWindow > 0;
+        }
+
+        protected void onAttackStarted() {
+        }
+
+        protected void onDamaged() {
+        }
+
+        protected void onDeath() {
         }
         
         public EnemyState getState() { return state; }
@@ -1099,6 +1112,21 @@ public class GameModel {
             this.attackCooldown = 2000; // goblins are slow
             this.attackActiveWindowDefault = 220;
         }
+
+        @Override
+        protected void onAttackStarted() {
+            SoundManager.playGoblinAttack();
+        }
+
+        @Override
+        protected void onDamaged() {
+            SoundManager.playGoblinDamage();
+        }
+
+        @Override
+        protected void onDeath() {
+            SoundManager.playGoblinDeath();
+        }
     }
     
     public static class Wolf extends Enemy {
@@ -1110,6 +1138,21 @@ public class GameModel {
             this.attackCooldown = 1500; // wolves faster
             this.attackActiveWindowDefault = 160;
         }
+
+        @Override
+        protected void onAttackStarted() {
+            SoundManager.playWolfAttack();
+        }
+
+        @Override
+        protected void onDamaged() {
+            SoundManager.playWolfDamage();
+        }
+
+        @Override
+        protected void onDeath() {
+            SoundManager.playWolfDeath();
+        }
     }
     
     public static class Rogue extends Enemy {
@@ -1120,6 +1163,21 @@ public class GameModel {
             this.y = CHARACTER_GROUND_Y - height;
             this.attackCooldown = 1800; // rogue medium
             this.attackActiveWindowDefault = 240;
+        }
+
+        @Override
+        protected void onAttackStarted() {
+            SoundManager.playRogueAttack();
+        }
+
+        @Override
+        protected void onDamaged() {
+            SoundManager.playRogueDamage();
+        }
+
+        @Override
+        protected void onDeath() {
+            SoundManager.playRogueDeath();
         }
     }
     

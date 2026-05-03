@@ -544,4 +544,27 @@ Results : Done very well
 
 
 Prompt : everythingis working perfectly thank you so much, just final edits and enhancments :
-I hate the current music and voices , so i want to get red of all of them (except for the money collecting, power-up, level up, and anything that is not covered by the voices and sounds i just added in the assets folder), you can find files each with its name that discripes where and what it should be for, make sure the SoundMnager.java be fixed and enhanced accoredngly without touching anything else anywhere else unless nessacery , don't change anythinge else. Make sure everything has his owns spirits and sounds that gives the game real feelings and fun!
+I hate the current music and voices , so i want to get red of all of them (except for the money collecting, power-up, level up, and anything that is not covered by the voices and sounds i just added in the assets folder), you can find files each with its name that discripes where and what it should be for, make sure the SoundMnager.java be fixed and enhanced accoredngly without touching anything else anywhere else unless nessacery , don't change anythinge else. Make sure everything has his owns spirits and sounds that gives the game real feelings and fun! check the current sound wiring and the new asset names
+
+
+Results 1 : background and other voices muted, that is not what i meant, i meant to use the assets i just added in the assets folder for the music and voices ! use battleThemeA.mp3 as background music, use wolf-voics for wolf actions (play when attack, play when die, etc...) and gobline for gobline and so on. As for the player, use the walking voices for then he is walking, the battle when he attacks and also use the battle sawrd voices with the rogue attack as he use sowrd as well, you don't have to use all the voices, also make sure don't use two voices for the same thing. locate the actual attack and walk methods so you can attach the right sound to the right action
+
+
+Results 2 : No voice or sound or music is working except the walking sound ! and it is sooo annoying, maybe make it one sound only, and not keep rendaring that fast, and not that laud, also fix the other voices and sounds and make them work. I see in SoundManager that :"  public static void playMusic() {
+        if (musicClip != null && musicClip.isOpen()) {
+            return;
+        }
+
+        Clip clip = openClip("battleThemeA.mp3");
+        if (clip == null) {
+            return;
+        }
+
+        musicClip = clip;
+        try {
+            clip.loop(Clip.LOOP_CONTINUOUSLY);
+            clip.start();
+        } catch (Exception ignored) {
+            stopMusic();
+        }
+    }" this seems to return nothing instead of running the music, or the music doesn't work when you call it, same thing with other sounds and voices, fix correctly after debugging

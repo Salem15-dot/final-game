@@ -278,6 +278,16 @@ public class GameController {
             if (keyboardController.wasBuyJumpPressed()) {
                 model.purchaseUpgrade(GameModel.AbilityType.JUMP);
             }
+
+            if (model.getGameState() == GameModel.GameState.PLAYING
+                    && player != null
+                    && player.isOnGround()
+                    && player.getState() != GameModel.PlayerState.PUNCH
+                    && player.getState() != GameModel.PlayerState.KICK
+                    && player.getState() != GameModel.PlayerState.HURT
+                    && (keyboardController.isLeftHeld() || keyboardController.isRightHeld())) {
+                SoundManager.playPlayerWalk();
+            }
             
         }
     }
