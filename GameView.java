@@ -322,6 +322,30 @@ public class GameView {
         private void drawVictoryPrompt(Graphics2D g2d) {
             drawDarkOverlay(g2d, "VICTORY!");
 
+            if (model.getCurrentLevel() >= 5) {
+                String message = "Thanks for playing!";
+                g2d.setFont(new Font("Arial", Font.BOLD, 26));
+                FontMetrics fm = g2d.getFontMetrics();
+                int messageX = (getWidth() - fm.stringWidth(message)) / 2;
+                g2d.drawString(message, messageX, getHeight() / 2 + 24);
+
+                String subMessage = "You cleared the final challenge. Congratulations!";
+                g2d.setFont(new Font("Arial", Font.PLAIN, 18));
+                FontMetrics subFm = g2d.getFontMetrics();
+                int subX = (getWidth() - subFm.stringWidth(subMessage)) / 2;
+                g2d.drawString(subMessage, subX, getHeight() / 2 + 54);
+
+                String hs = "High Score: " + model.getHighScore();
+                g2d.setFont(new Font("Arial", Font.PLAIN, 16));
+                FontMetrics hfm = g2d.getFontMetrics();
+                int hsX = (getWidth() - hfm.stringWidth(hs)) / 2;
+                g2d.drawString(hs, hsX, getHeight() / 2 + 82);
+
+                victoryYesButtonBounds = new Rectangle();
+                victoryNoButtonBounds = new Rectangle();
+                return;
+            }
+
             String prompt = "Ready for the real game?";
             g2d.setFont(new Font("Arial", Font.BOLD, 24));
             FontMetrics fm = g2d.getFontMetrics();

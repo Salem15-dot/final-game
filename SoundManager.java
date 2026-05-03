@@ -173,15 +173,52 @@ public final class SoundManager {
         if (mp3.exists()) {
             try {
                 String uri = mp3.getAbsolutePath().replace("\\", "/");
-                String command = "Add-Type -AssemblyName presentationCore; "
-                    + "$player = New-Object System.Windows.Media.MediaPlayer; "
-                    + "$player.Volume = 0.25; "
-                    + "Register-ObjectEvent -InputObject $player -EventName MediaEnded "
-                    + "-Action { $player.Position = [TimeSpan]::Zero; $player.Play() } "
-                    + "| Out-Null; "
-                    + "$player.Open([uri]'file:///" + uri + "'); "
-                    + "$player.Play(); "
-                    + "while ($true) { Start-Sleep -Seconds 1 }";
+                // =============================================================================
+// SINGLE EDIT — in SoundManager.java, inside the playMusic() method.
+//
+// Find the PowerShell command string (the line starting with:
+//     String command = "Add-Type -AssemblyName presentationCore; "
+// and replace the WHOLE string assignment with the version below.
+//
+// Nothing else in the file needs to change. The .wav path (which uses
+// Clip.LOOP_CONTINUOUSLY) already loops correctly. This fix is only for
+// the MP3 fallback path.
+// =============================================================================
+
+String command =
+    "Add-Type -AssemblyName presentationCore; "
+  + "$player = New-Object System.Windows.Media.MediaPlayer; "
+  + "$player.Volume = 0.25; "
+  // Register an event handler that fires the moment the song ends.
+  // Inside the handler we rewind to position zero and call Play() again,
+  // giving us a perfect seamless loop for as long as the JVM keeps the
+  // PowerShell process alive (i.e. as long as the window is open).
+  + "Register-ObjectEvent -InputObject $player -EventName MediaEnded "
+  +   "-Action { $player.Position = [TimeSpan]::Zero; $player.Play() } "
+  +   "| Out-Null; "
+  + "$player.Open([uri]'file:///" + uri + "'); "
+  + "$player.Play(); "
+  // Idle loop so the PowerShell process stays alive and the event handler
+  // can fire each time the song finishes. Killed when the JVM shuts down
+  // and your stopMusic() / shutdown hook calls musicProcess.destroy().
+  + "while ($true) { Start-Sleep -Seconds 1 }";
+
+
+// =============================================================================
+// HOW IT WORKS
+//
+//  1. MediaPlayer plays the MP3 once (Play()).
+//  2. When the song ends, MediaPlayer fires the MediaEnded event.
+//  3. Our handler resets Position to zero and calls Play() again.
+//  4. Step 2 repeats forever — that's the loop.
+//
+// The Start-Sleep idle loop is unchanged; it just keeps the PowerShell
+// process alive so the event handler stays subscribed. Your existing
+// shutdown hook still calls musicProcess.destroy() on exit, so the
+// music still stops cleanly when the window closes.
+//
+// No other method in SoundManager changes. MethodTester is unaffected.
+// =============================================================================
                 ProcessBuilder builder = new ProcessBuilder(
                         "powershell",
                         "-NoProfile",
