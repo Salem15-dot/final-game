@@ -6,6 +6,8 @@
 import javax.swing.*;
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.util.HashSet;
@@ -28,6 +30,18 @@ public class GameController {
         this.collisionController = new CollisionController();
         this.stateController = new StateController(model, view);
         SoundManager.playMusic();
+
+        view.getGameWindow().addWindowListener(new WindowAdapter() {
+            @Override
+            public void windowClosing(WindowEvent e) {
+                SoundManager.stopMusic();
+            }
+
+            @Override
+            public void windowClosed(WindowEvent e) {
+                SoundManager.stopMusic();
+            }
+        });
         
         // Setup input on game window
         view.getGameWindow().addKeyListener(keyboardController);
@@ -143,6 +157,7 @@ public class GameController {
         private StateController stateController;
         private Timer timer;
         private long lastFrameTime;
+        private boolean wasWalkingCueActive;
         private static final int FPS = 60;
         private static final int FRAME_DELAY = 1000 / FPS; // ~16ms
         
@@ -156,6 +171,7 @@ public class GameController {
             this.collisionController = collisionController;
             this.stateController = stateController;
             this.lastFrameTime = System.currentTimeMillis();
+            this.wasWalkingCueActive = false;
         }
         
         /**
@@ -173,6 +189,7 @@ public class GameController {
             if (timer != null) {
                 timer.stop();
             }
+            SoundManager.stopMusic();
         }
         
         /**
@@ -229,6 +246,7 @@ public class GameController {
             // If we're on the title screen, allow START (SPACE) to launch the game
             if (model.getGameState() == GameModel.GameState.TITLE && keyboardController.wasStartPressed()) {
                 stateController.startNewGame();
+                wasWalkingCueActive = false;
                 return;
             }
 
@@ -286,7 +304,12 @@ public class GameController {
                     && player.getState() != GameModel.PlayerState.KICK
                     && player.getState() != GameModel.PlayerState.HURT
                     && (keyboardController.isLeftHeld() || keyboardController.isRightHeld())) {
-                SoundManager.playPlayerWalk();
+                if (!wasWalkingCueActive) {
+                    SoundManager.playPlayerWalk();
+                    wasWalkingCueActive = true;
+                }
+            } else {
+                wasWalkingCueActive = false;
             }
             
         }

@@ -63,6 +63,9 @@ public final class SoundManager {
     }
 
     public static void playPlayerAttack() {
+        if (!throttle("playerAttack", 500)) {
+            return;
+        }
         play("battle/swing.wav", -8.0f);
     }
 
@@ -87,10 +90,16 @@ public final class SoundManager {
     }
 
     public static void playGoblinAttack() {
+        if (!throttle("goblinAttack", 500)) {
+            return;
+        }
         play("goblin-voices/goblin-attack.wav", -6.0f);
     }
 
     public static void playGoblinDamage() {
+        if (!throttle("goblinDamage", 300)) {
+            return;
+        }
         play("goblin-voices/gobline-reciving-damage.wav", -6.0f);
     }
 
@@ -99,10 +108,16 @@ public final class SoundManager {
     }
 
     public static void playWolfAttack() {
+        if (!throttle("wolfAttack", 500)) {
+            return;
+        }
         play("wolf-voics/wolf-attack.wav", -6.0f);
     }
 
     public static void playWolfDamage() {
+        if (!throttle("wolfDamage", 300)) {
+            return;
+        }
         play("wolf-voics/wolf-recive-damage.wav", -6.0f);
     }
 
@@ -111,10 +126,16 @@ public final class SoundManager {
     }
 
     public static void playRogueAttack() {
+        if (!throttle("rogueAttack", 500)) {
+            return;
+        }
         play("rogue/roguer-attack.wav", -6.0f);
     }
 
     public static void playRogueDamage() {
+        if (!throttle("rogueDamage", 300)) {
+            return;
+        }
         play("rogue/roguer-recive-damage.wav", -6.0f);
     }
 

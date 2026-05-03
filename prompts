@@ -568,3 +568,11 @@ Results 2 : No voice or sound or music is working except the walking sound ! and
             stopMusic();
         }
     }" this seems to return nothing instead of running the music, or the music doesn't work when you call it, same thing with other sounds and voices, fix correctly after debugging
+
+
+    Results 3 : sound of musics is still running even after i stopped the game , also the game lagges soooo much i belive becouse you are playing the voice on the computer not in the game ! so you are trying to play too much voices in the same time or so which cases lagges and i can't hear voices but i heard one or two and they were late which means it maybe what am saying about playing the voices and sounds mistaken way . It supposed to be that when an action triggered for an object like attack method for player , the voic that is saved here in the files playes! as for the music it keeps playing and replaying as long as the window is active. search and read and debugg and analyse and understand and think and fix it best correct complete way !
+
+    Results 4: you don't understand, game is still lagging everytime i attack or the enemies attack or so, which i think everytime a sound from the goblin or me or others try to run, so there are errors with how to run these ones, also methodes seems like delyaing or something becsouse voices delayed . make sure no error happens . This error comes from the fact that the sounds seems to run too many times since the rigger tiggers as long as it is true which can last for seconds sometimes which is very many times if it runs on frams (milli seconds! ) so there are laggs, make sounds riggers only once and only for certin events and not during the them! 
+
+
+    prompt 5 : Still so many lagges and the sound of the music is now playing even when closing the window

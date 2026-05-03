@@ -619,7 +619,10 @@ public class GameModel {
             if (punchCooldownRemaining > 0) {
                 return;
             }
-            SoundManager.playPlayerAttack();
+            // Only play sound on the first punch() call (when cooldown is 0)
+            if (punchCooldownRemaining == 0) {
+                SoundManager.playPlayerAttack();
+            }
             state = PlayerState.PUNCH;
             attackFrameWindow = punchAttackWindowDefault;
             actionStateTimer = 220;
@@ -636,7 +639,10 @@ public class GameModel {
             if (kickCooldownRemaining > 0) {
                 return;
             }
-            SoundManager.playPlayerAttack();
+            // Only play sound on the first kick() call (when cooldown is 0)
+            if (kickCooldownRemaining == 0) {
+                SoundManager.playPlayerAttack();
+            }
             state = PlayerState.KICK;
             attackFrameWindow = kickAttackWindowDefault;
             actionStateTimer = 260;
@@ -869,6 +875,7 @@ public class GameModel {
         protected long attackCooldownRemaining;
         protected long attackActiveWindow;
         protected boolean attackDelivered;
+        protected boolean attackSoundPlayed;
         protected long attackActiveWindowDefault;
         protected int facing = 1; // 1 = right, -1 = left
         
@@ -883,6 +890,7 @@ public class GameModel {
             this.attackCooldown = 2000; // 2 seconds between attacks
             this.attackCooldownRemaining = 0;
             this.attackActiveWindow = 0;
+            this.attackSoundPlayed = false;
             this.attackActiveWindowDefault = 220;
         }
         
@@ -911,6 +919,7 @@ public class GameModel {
                     attackActiveWindow = 0;
                     // reset delivered marker for the next attack
                     attackDelivered = false;
+                    attackSoundPlayed = false;
                 }
             }
 
@@ -925,8 +934,13 @@ public class GameModel {
                     attackActiveWindow = this.attackActiveWindowDefault > 0 ? this.attackActiveWindowDefault : 220;
                     attackCooldownRemaining = attackCooldown;
                     attackDelivered = false;
-                    onAttackStarted();
+                    attackSoundPlayed = false;
                     attackTriggered = true;
+                }
+                // Play attack sound exactly once per attack cycle, when just triggered
+                if (attackTriggered && !attackSoundPlayed) {
+                    onAttackStarted();
+                    attackSoundPlayed = true;
                 }
             } else {
                 walkToward(player.getX(), deltaTime);
