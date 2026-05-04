@@ -43,7 +43,7 @@ public class GameModel {
         SPEED, HEALTH, DAMAGE, JUMP
     }
     
-    // World bounds
+    // World bounds (keep as constants for coordinate system)
     public static final int WORLD_WIDTH = 1280;
     public static final int WORLD_HEIGHT = 720;
     public static final int GROUND_Y = 550; // Fixed ground baseline

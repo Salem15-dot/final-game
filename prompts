@@ -599,3 +599,29 @@ Results 2 : Works perfectly, music works, sounds work, everything as it supposed
 
 
 prompt 21 : Background Music still doesn't repeat when finishes but it is fine not a big deal now, the big deal is that even when finishing level 5 the victory display keep showing : ready for the real game ? and yes repeat level 5! this should not happen, after level 4 finishes and this victory and ready for rael game display and yes starting level 5 and then after finishing level 5 a celebration of victory and thanks for playing and congrats and so should display not the same window as level 4 completion 
+
+
+
+Results : not sure, couldn't make it to the victory :)
+
+
+Prompt 22 : Just as i was about to submit it, i tried openning it from another computer screen and noticed that the hight of the players is different they seem like flying and i think this is becouse of the size of the background changing and the coordinates being relative only to my laptop screen instead of flixable and work on every screen. Think and analyse and best fix this without breaking other things that are alraedy correct and working, don't change anything in control or Modle this is View issue that can be fixed easly without missing up anything else that is already working, just y cordinates / position or so
+
+
+Results : "I've identified the exact issue: the Y offsets in getEnemyDrawYOffset() are hardcoded and don't scale with screen resolution. I'll fix this by making them proportional to the actual panel height: " 
+
+Prompt 23 : yeah , forgot to do the same for the player !  also when i move i bunch in a hidden wall even tho there is more place to go which means in the x axis you limited the distacne the player can move in the screen to the previous laptop screen only and not flixable to the screen/window of anyone .(check the screenshot to understand) 
+
+Results : "The X issue requires making WORLD_WIDTH dynamic in GameModel. Let me fix both:"  
+
+Prompt 24 : when i minimize the window i have a hight of objects, and when i open full window i get another new hight relative to the background. remember everything is relative to background should be alawys the same which seems like they are walking on the ground and not flying in the sky! also player is still higher than others 
+
+
+Results : I see he done this very well now where he made the high relative to the screen size using  WORLD_WIDTH and WORLD_HEIGHT as constants (1280x720) and then calculating a scale factors based on actual panel dimensions. One small last fix tho the enemies are low now lower than the ground they need to come up to the ground level as the player hight which is perfect
+
+
+Results 2 : Great everything works now
+
+
+
+Notes : Sometimes i had to fix things myself, when i write prompt and don't get him fixing it from the first time or second, i forgot to take notes when such thing happens but it can be seen by the multiple "Results" and then skipping into a new prompt, that is because i already fixed it myself. Like the enemies hight, just fix it at GameView codes 640 - 649 

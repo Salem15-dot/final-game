@@ -78,6 +78,10 @@ public class GameView {
         // Animation system fields
         private BufferedImage playerSheet, goblinSheet, rogueSheet, wolfSheet;
         
+        // Scale factors for screen-independent rendering
+        private double widthScale = 1.0;
+        private double heightScale = 1.0;
+        
         // AnimClip instances for each animation
         private AnimClip playerIdle, playerCrouch, playerWalk, playerRun,
             playerJump, playerFall, playerPunch, playerKick, playerHurt,
@@ -139,6 +143,10 @@ public class GameView {
             Graphics2D g2d = (Graphics2D) g;
             g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
             
+            // Calculate and store scale factors based on actual panel dimensions vs reference (1280x720)
+            this.widthScale = getWidth() / 1280.0;
+            this.heightScale = getHeight() / 720.0;
+            
             // Draw background
             backgroundView.draw(g2d, getWidth(), getHeight());
 
@@ -162,13 +170,17 @@ public class GameView {
                           : enemyType.equals("Rogue") ? 3
                           : 2; // Wolf
 
-                int drawY = (int) enemy.getY() + getEnemyDrawYOffset(enemyType);
+                // Scale X and Y position, plus Y offset based on actual panel dimensions
+                int scaledX = (int)(enemy.getX() * widthScale);
+                int baseYOffset = getEnemyDrawYOffset(enemyType);
+                int scaledYOffset = (int)(baseYOffset * heightScale);
+                int drawY = (int)(enemy.getY() * heightScale) + scaledYOffset;
 
                 // Wolf sprite faces right by default; flip only when it needs to face left.
                 boolean shouldFlip = facingLeft && enemyType.equals("Wolf");
 
-                drawSprite(g2d, sprite, (int) enemy.getX(), drawY, scale, shouldFlip);
-                drawEnemyHealthBar(g2d, enemy, (int) enemy.getX(), drawY, sprite == null ? (int) (enemy.getWidth() * scale) : sprite.getWidth() * scale);
+                drawSprite(g2d, sprite, scaledX, drawY, scale, shouldFlip);
+                drawEnemyHealthBar(g2d, enemy, scaledX, drawY, sprite == null ? (int) (enemy.getWidth() * scale) : sprite.getWidth() * scale);
             }
 
             // Draw player
@@ -177,7 +189,12 @@ public class GameView {
                 if (pClip != null) {
                     BufferedImage pSprite = pClip.getFrame(0);
                     boolean playerFacesLeft = (player.getFacing() < 0);
-                    drawSprite(g2d, pSprite, (int)player.getX(), (int)player.getY(), 3, playerFacesLeft);
+                    // Scale player X and Y position the same way as enemies
+                    int scaledPlayerX = (int)(player.getX() * widthScale);
+                    int playerBaseYOffset = 30; // Consistent with enemies
+                    int scaledPlayerYOffset = (int)(playerBaseYOffset * heightScale);
+                    int drawPlayerY = (int)(player.getY() * heightScale) + scaledPlayerYOffset;
+                    drawSprite(g2d, pSprite, scaledPlayerX, drawPlayerY, 3, playerFacesLeft);
                 }
             }
             
@@ -403,8 +420,8 @@ public class GameView {
             }
             g2d.setFont(new Font("Arial", Font.BOLD, 14));
             for (GameModel.PowerUp powerUp : model.getPowerUps()) {
-                int drawX = (int) Math.round(powerUp.getX());
-                int drawY = (int) Math.round(powerUp.getY());
+                int drawX = (int) Math.round(powerUp.getX() * widthScale);
+                int drawY = (int) Math.round(powerUp.getY() * heightScale);
                 g2d.setColor(powerUp.getColor());
                 g2d.fillRoundRect(drawX, drawY, (int) powerUp.getWidth(), (int) powerUp.getHeight(), 10, 10);
                 g2d.setColor(Color.WHITE);
@@ -443,8 +460,8 @@ public class GameView {
                 g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, alpha));
                 g2d.setColor(text.getColor());
                 FontMetrics fm = g2d.getFontMetrics();
-                int drawX = (int) Math.round(text.getX()) - fm.stringWidth(text.getText()) / 2;
-                int drawY = (int) Math.round(text.getY());
+                int drawX = (int) Math.round(text.getX() * widthScale) - fm.stringWidth(text.getText()) / 2;
+                int drawY = (int) Math.round(text.getY() * heightScale);
                 g2d.drawString(text.getText(), drawX, drawY);
                 g2d.setComposite(old);
             }
@@ -481,8 +498,8 @@ public class GameView {
         private void drawMoneyItems(Graphics2D g2d) {
             if (model == null) return;
             for (GameModel.Money m : model.getMoneyList()) {
-                int cx = (int) Math.round(m.getX());
-                int cy = (int) Math.round(m.getY());
+                int cx = (int) Math.round(m.getX() * widthScale);
+                int cy = (int) Math.round(m.getY() * heightScale);
                 int size = Math.max(10, m.getValue() * 8);
                 g2d.setColor(new Color(212, 175, 55)); // gold
                 g2d.fillOval(cx, cy, size, size);
@@ -622,12 +639,12 @@ public class GameView {
 
         private int getEnemyDrawYOffset(String enemyType) {
             if (enemyType.equals("Wolf")) {
-                return 28;
+                return 60;
             }
             if (enemyType.equals("Rogue")) {
-                return 10;
+                return 32;
             }
-            return 0;
+            return 30; // Goblin - same as player
         }
     }
     
