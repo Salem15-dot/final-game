@@ -96,7 +96,7 @@ If you use an IDE, ensure the `assets/` directory is copied to the working direc
 - Audio pitfalls: WAV format compatibility and graceful fallbacks; using a PowerShell fallback is a pragmatic cross-platform workaround on Windows.
 - Small UX details matter: per-enemy health bars, floating text, and responsive HUD greatly improve feedback.
 - Tooling: fixed a local Git identity issue and learned to diagnose VS Code git askpass permission errors.
+- Using gameArt : How to use real art and .png in the games and add assets correctly, render the frames and animations. 
 
 ---
 
-If you want, I can commit this README update and optionally add a short "Developer Notes" section describing how to add a new enemy type or how to convert/replace missing audio assets. Which would you prefer next?
